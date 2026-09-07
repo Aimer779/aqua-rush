@@ -17,6 +17,13 @@ unmodified commit `94b3e11d32d234eeba4fd4c0316af0d2993732f9`.
 | Existing race flow and wave handling | 6 tests passed |
 | Updated mode-menu screenshot | Passed after updating only the new Online Race menu baseline |
 | 1920×1080 production performance | Passed on RTX 5060 Laptop GPU: 165.19 average FPS, p95 6.2 ms, no frames over 25 ms |
+| Public Cloudflare deployment | HTTPS page/health and all four room/browser checks passed, including WSS reconnect and same-origin rejection |
+
+Public verification URL: <https://aqua-rush-online.chim33472.workers.dev>.
+Application commit: `bd41276`. Cloudflare deployment version:
+`4eea8580-eaa1-446f-b9b2-fe27b459e79b`.
+The origin test sends a complete WebSocket handshake so it exercises the Worker
+guard rather than the edge's malformed-request rejection.
 
 The real-time four-client tests took approximately 1.2 minutes for Sunset Circuit
 and 1.9 minutes for Storm Reef. They use ordinary input messages, not teleports,

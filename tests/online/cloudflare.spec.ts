@@ -56,7 +56,12 @@ test('Cloudflare room owns simulation, supports real socket reconnection and sur
 test('foreign origins cannot create rooms or open room sockets', async ({ request }) => {
   const create = await request.post('/api/rooms', { headers: { Origin: 'https://unrelated.example' } });
   expect(create.status()).toBe(403);
-  const connect = await request.get('/api/rooms/ABCDEFGH', { headers: { Origin: 'https://unrelated.example', Upgrade: 'websocket' } });
+  // Send a complete handshake: the production edge rejects malformed upgrades
+  // before the Worker's origin guard gets a chance to inspect the request.
+  const connect = await request.get('/api/rooms/ABCDEFGH', { headers: {
+    Origin: 'https://unrelated.example', Upgrade: 'websocket', Connection: 'Upgrade',
+    'Sec-WebSocket-Version': '13', 'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+  } });
   expect(connect.status()).toBe(403);
 });
 
