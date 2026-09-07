@@ -36,6 +36,8 @@ export type CheckpointCrossing = {
 };
 
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+/** Arcade forgiveness keeps a visually plausible near miss from dropping an otherwise clean lap. */
+const CHECKPOINT_LATERAL_GRACE = 2.4;
 
 /** Data-driven circuit with open-water navigation and directional sector planes. */
 export class RaceTrack {
@@ -145,7 +147,7 @@ export class RaceTrack {
     const lateral = Math.abs(this.crossingDelta.dot(gate.right));
     const vertical = Math.abs(this.crossingDelta.y);
     if (direction <= 0.8) return { valid: false, direction, lateral, vertical, intersection: this.crossingPoint, reason: direction < -0.1 ? 'reverse' : 'too-slow' };
-    if (lateral > gate.halfWidth) return { valid: false, direction, lateral, vertical, intersection: this.crossingPoint, reason: 'side' };
+    if (lateral > gate.halfWidth + CHECKPOINT_LATERAL_GRACE) return { valid: false, direction, lateral, vertical, intersection: this.crossingPoint, reason: 'side' };
     if (vertical > gate.height) return { valid: false, direction, lateral, vertical, intersection: this.crossingPoint, reason: 'height' };
     return { valid: true, direction, lateral, vertical, intersection: this.crossingPoint, reason: 'valid' };
   }

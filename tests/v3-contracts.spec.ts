@@ -87,7 +87,17 @@ test.describe('V3 content and directional checkpoint contracts', () => {
       );
       expect(reverse).toMatchObject({ valid: false, reason: 'reverse' });
 
-      const outside = gate.right.clone().multiplyScalar(gate.halfWidth + 0.5);
+      const nearMiss = gate.right.clone().multiplyScalar(gate.halfWidth + 1.2);
+      const forgiven = track.validateCheckpointCrossing(
+        0,
+        behind.clone().add(nearMiss),
+        ahead.clone().add(nearMiss),
+        legalVelocity,
+      );
+      expect(forgiven).toMatchObject({ valid: true, reason: 'valid' });
+      expect(forgiven.lateral).toBeGreaterThan(gate.halfWidth);
+
+      const outside = gate.right.clone().multiplyScalar(gate.halfWidth + 2.9);
       const side = track.validateCheckpointCrossing(
         0,
         behind.clone().add(outside),

@@ -411,8 +411,7 @@ export class CourseVisuals {
     // Sector posts need to read from a distance without turning into cyan
     // screen wipes when the chase camera passes close beside one.
     const postGeometry = new THREE.CylinderGeometry(0.17, 0.29, 4.25, 8, 1);
-    const barGeometry = new THREE.BoxGeometry(1, 0.2, 0.24);
-    const flagGeometry = new THREE.PlaneGeometry(1.1, 0.65);
+    const signalGeometry = new THREE.PlaneGeometry(1, 0.22);
     const postMaterial = new THREE.MeshBasicMaterial({
       color: ARCADE_PALETTE.cyan,
       transparent: true,
@@ -420,14 +419,11 @@ export class CourseVisuals {
       depthWrite: false,
       toneMapped: false,
     });
-    const barMaterial = new THREE.MeshBasicMaterial({ color: ARCADE_PALETTE.cyan, toneMapped: false });
-    const flagMaterial = new THREE.MeshBasicMaterial({ color: ARCADE_PALETTE.sun, side: THREE.DoubleSide, toneMapped: false });
+    const signalMaterial = new THREE.MeshBasicMaterial({ color: ARCADE_PALETTE.sun, side: THREE.DoubleSide, toneMapped: false });
     const posts = new THREE.InstancedMesh(postGeometry, postMaterial, visible.length * 2);
-    const bars = new THREE.InstancedMesh(barGeometry, barMaterial, visible.length);
-    const flags = new THREE.InstancedMesh(flagGeometry, flagMaterial, visible.length);
+    const signals = new THREE.InstancedMesh(signalGeometry, signalMaterial, visible.length);
     posts.name = 'instancedCheckpointPosts';
-    bars.name = 'instancedCheckpointBars';
-    flags.name = 'instancedCheckpointSignals';
+    signals.name = 'instancedCheckpointSignals';
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
     const scale = new THREE.Vector3();
@@ -446,18 +442,14 @@ export class CourseVisuals {
       position.copy(checkpoint.center).setY(6.0);
       scale.set(visualHalfWidth * 2.05, 1, 1);
       matrix.compose(position, quaternion, scale);
-      bars.setMatrixAt(index, matrix);
-      position.copy(checkpoint.center).addScaledVector(checkpoint.right, visualHalfWidth).setY(4.55);
-      scale.set(0.46, 0.46, 0.46);
-      matrix.compose(position, quaternion, scale);
-      flags.setMatrixAt(index, matrix);
+      signals.setMatrixAt(index, matrix);
     });
     posts.instanceMatrix.needsUpdate = true;
-    bars.instanceMatrix.needsUpdate = true;
-    flags.instanceMatrix.needsUpdate = true;
-    // Posts and elevated signal flags read as gates without forming a screen-wide visual wall.
-    this.courseRoot.add(posts, flags);
-    this.ownedCourseResources.push(postGeometry, barGeometry, flagGeometry, postMaterial, barMaterial, flagMaterial);
+    signals.instanceMatrix.needsUpdate = true;
+    // Reuse the existing signal draw call as a thin high crossbar, completing the gate silhouette
+    // without adding another persistent render pass.
+    this.courseRoot.add(posts, signals);
+    this.ownedCourseResources.push(postGeometry, signalGeometry, postMaterial, signalMaterial);
   }
 
   private createVisibleRocks(track: RaceTrack): void {

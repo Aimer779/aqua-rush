@@ -301,7 +301,7 @@ export class Game {
     this.course = new CourseVisuals({ definition, centerline: this.track.points, courseWidth: this.track.halfWidth * 2, buoySpacing: definition.buoySpacing, materials: this.materials, seed: definition.seed });
     this.course.install(this.scene);
     this.course.setTrack(this.track);
-    this.guide = new GuideLineRenderer(this.track, this.waves, { aheadDistance: 140, behindDistance: 18, segments: 96, width: 1.05, surfaceOffset: 0.18 });
+    this.guide = new GuideLineRenderer(this.track, this.waves, { aheadDistance: 160, behindDistance: 22, segments: 112, width: 1.65, surfaceOffset: 0.28 });
     this.interactions = new InteractionSystem(this.track);
     this.interactionVisuals = new InteractionGateRenderer(this.track);
     this.navigationBeacon = new NavigationBeacon();
@@ -390,7 +390,9 @@ export class Game {
       interactionTone: this.nearestInteractionTone(playerState.progress),
       widthScale: projection.distance > 48 ? 1.55 : 1,
     });
-    this.navigationBeacon.update(visualElapsed, this.track.getCheckpoint(playerState.nextCheckpoint).center, projection.distance > 45);
+    const nextCheckpoint = this.track.getCheckpoint(playerState.nextCheckpoint);
+    const checkpointDistance = this.player.group.position.distanceTo(nextCheckpoint.center);
+    this.navigationBeacon.update(visualElapsed, nextCheckpoint.center, projection.distance > 45 || checkpointDistance < 120);
     const interactionStates = this.interactions.getStates();
     this.interactionVisuals.update(interactionStates, visualElapsed);
 
@@ -851,8 +853,8 @@ export class Game {
       guide: {
         state: playerState.wrongWay ? 'wrong-way' : projection.distance > 45 ? 'return' : this.nearestInteractionTone(playerState.progress),
         brightestAheadStart: 80,
-        brightestAheadEnd: 140,
-        beaconVisible: projection.distance > 45,
+        brightestAheadEnd: 160,
+        beaconVisible: projection.distance > 45 || this.player.group.position.distanceTo(targetCheckpoint.center) < 120,
       },
       recovery: {
         eligible: projection.distance > 55 || this.stationaryDuration > 4,

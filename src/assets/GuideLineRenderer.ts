@@ -51,12 +51,13 @@ export class GuideLineRenderer {
     this.segments = THREE.MathUtils.clamp(Math.round(options.segments ?? 96), 48, 160);
     this.aheadDistance = THREE.MathUtils.clamp(options.aheadDistance ?? 140, 80, 180);
     this.behindDistance = THREE.MathUtils.clamp(options.behindDistance ?? 18, 6, 32);
-    this.baseWidth = THREE.MathUtils.clamp(options.width ?? 0.42, 0.18, 0.9);
+    this.baseWidth = THREE.MathUtils.clamp(options.width ?? 0.82, 0.35, 2.4);
     this.root.name = 'waveFollowingGuideLine';
 
     this.positions = new Float32Array((this.segments + 1) * 2 * 3);
     const distances = new Float32Array((this.segments + 1) * 2);
     const alphas = new Float32Array((this.segments + 1) * 2);
+    const sides = new Float32Array((this.segments + 1) * 2);
     const indices = new Uint16Array(this.segments * 6);
     const span = this.aheadDistance + this.behindDistance;
     for (let index = 0; index <= this.segments; index += 1) {
@@ -75,6 +76,8 @@ export class GuideLineRenderer {
       distances[vertex + 1] = distance;
       alphas[vertex] = visibility;
       alphas[vertex + 1] = visibility;
+      sides[vertex] = -1;
+      sides[vertex + 1] = 1;
       if (index < this.segments) {
         const offset = index * 6;
         indices[offset] = vertex;
@@ -91,6 +94,7 @@ export class GuideLineRenderer {
     geometry.setAttribute('position', this.positionAttribute);
     geometry.setAttribute('aDistance', new THREE.BufferAttribute(distances, 1));
     geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+    geometry.setAttribute('aSide', new THREE.BufferAttribute(sides, 1));
     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
     geometry.name = 'fixedCapacityGuideRibbon';
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 500);
@@ -105,7 +109,7 @@ export class GuideLineRenderer {
       uniforms: {
         uTime: { value: 0 },
         uColor: { value: NORMAL_COLOR.clone() },
-        uVisibility: { value: 0.84 },
+        uVisibility: { value: 0.94 },
         uSurfaceOffset: { value: options.surfaceOffset ?? 0.09 },
         uWaveDirection: { value: waves.directions },
         uWaveAmplitude: { value: waves.amplitudes },
@@ -125,8 +129,10 @@ export class GuideLineRenderer {
         uniform float uWaveSteepness[${GERSTNER_WAVE_COUNT}];
         attribute float aDistance;
         attribute float aAlpha;
+        attribute float aSide;
         varying float vDistance;
         varying float vAlpha;
+        varying float vSide;
 
         float oceanHeight(vec2 worldPosition) {
           float height = 0.0;
@@ -144,6 +150,7 @@ export class GuideLineRenderer {
           world.y += oceanHeight(world.xz) + uSurfaceOffset;
           vDistance = aDistance;
           vAlpha = aAlpha;
+          vSide = aSide;
           gl_Position = projectionMatrix * viewMatrix * world;
         }
       `,
@@ -153,14 +160,18 @@ export class GuideLineRenderer {
         uniform float uVisibility;
         varying float vDistance;
         varying float vAlpha;
+        varying float vSide;
 
         void main() {
           float flow = fract(vDistance * 0.085 - uTime * 1.15);
           float arrow = smoothstep(0.08, 0.2, flow) * (1.0 - smoothstep(0.62, 0.84, flow));
-          float spine = 0.46 + arrow * 0.54;
-          float alpha = vAlpha * uVisibility * spine;
+          float edgeFade = 1.0 - smoothstep(0.68, 1.0, abs(vSide));
+          float centerGlow = 1.0 - smoothstep(0.0, 0.34, abs(vSide));
+          float pulse = 0.9 + sin(uTime * 4.2 - vDistance * 0.055) * 0.1;
+          float alpha = vAlpha * uVisibility * (0.62 + arrow * 0.3 + centerGlow * 0.16) * edgeFade * pulse;
           if (alpha < 0.025) discard;
-          gl_FragColor = vec4(uColor, alpha);
+          vec3 color = mix(uColor, vec3(1.0), arrow * 0.2 + centerGlow * 0.16);
+          gl_FragColor = vec4(color, alpha);
         }
       `,
     });
@@ -198,7 +209,7 @@ export class GuideLineRenderer {
     this.positionAttribute.needsUpdate = true;
     this.material.uniforms.uTime.value = elapsed;
     const deviation = THREE.MathUtils.clamp((state.offRoute - 18) / 52, 0, 1);
-    this.material.uniforms.uVisibility.value = state.wrongWay ? 1 : THREE.MathUtils.lerp(0.78, 1, deviation);
+    this.material.uniforms.uVisibility.value = state.wrongWay ? 1 : THREE.MathUtils.lerp(0.92, 1, deviation);
     const tone = state.wrongWay
       ? WRONG_WAY_COLOR
       : state.interactionTone === 'boost'

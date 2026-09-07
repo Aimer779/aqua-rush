@@ -30,7 +30,7 @@ A crossing is legal only when all conditions hold:
 1. It is the racer's expected next sector.
 2. The swept previous→current segment crosses from the back side to the front side.
 3. Velocity has a positive forward component above the minimum.
-4. The intersection lies within the plane half-width and height.
+4. The intersection lies within the plane height and the authored half-width plus a 2.4-unit lateral arcade-forgiveness margin.
 5. The frame step is not an implausible teleport.
 
 Reverse, side, vertical, low-speed, repeated overlap, skipped, and out-of-order attempts cannot advance the lap. The finish plane counts a lap only after all previous sectors.
