@@ -9,6 +9,7 @@ type OnlineView = {
   leave: () => void;
   prepare: (snapshot: RoomSnapshot, playerId: string) => void;
   snapshot: (snapshot: RoomSnapshot) => void;
+  notice: (message: string) => void;
 };
 
 export class OnlineController {
@@ -37,7 +38,7 @@ export class OnlineController {
       track: (trackId) => this.connection.send({ type: 'track', trackId }),
       rematch: () => this.rematch(),
       leave: () => this.leave(),
-    });
+    }, (message) => this.view.notice(message));
     document.querySelector('#mode-online-button')!.addEventListener('click', () => this.open(), { signal: this.abort.signal });
     window.addEventListener('blur', () => this.prediction?.releaseInput(), { signal: this.abort.signal });
     document.addEventListener('visibilitychange', () => {

@@ -172,6 +172,7 @@ export class Game {
       },
       prepare: (snapshot, playerId) => this.prepareOnlineRace(snapshot, playerId),
       snapshot: (snapshot) => this.applyOnlineSnapshot(snapshot),
+      notice: (message) => this.hud.announce(message, 'info'),
     });
   }
 

@@ -87,6 +87,9 @@ and gate rewards are authoritative; prediction does not replay reward events.
 - Disconnects clear controls and retain the seat for 15 seconds. Unfinished racers
   become DNF after that deadline; finished results remain valid. Host management
   transfers to a connected player without moving the simulation.
+- Opponent departures, disconnections and reconnections show a named notice in the
+  lobby/race panel and the race HUD. The notice persists through ordinary snapshots;
+  when all opponents have left, the remaining racer is told they can finish or leave.
 - A ten-second heartbeat gap marks a connection lost; stale driving input becomes
   neutral after 250 ms. Browser blur and visibility changes release controls.
 - Loading times out after 30 seconds. After the first finish, remaining racers have

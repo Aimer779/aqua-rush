@@ -58,3 +58,17 @@ See [online multiplayer](online-multiplayer.md#verify) for the local room runtim
 full-race and browser commands. See the README for the production-preview
 performance environment. Generated screenshots, traces and local comparison data
 are written under ignored `artifacts/` or Playwright output directories.
+
+## Opponent departure notice regression
+
+The original client updated a disconnected opponent's roster state without a
+prominent departure message. A new two-browser regression failed on that client
+and now passes with persistent named notices, a short HUD announcement, host
+transfer feedback and explicit solo-continuation guidance.
+
+The targeted local suite passed 13 tests across desktop/mobile with one existing
+viewport-duplicate case skipped. It covers intentional race exit, closing a tab,
+the 15-second reconnect deadline, lobby exit and refresh reconnection. Final
+desktop/mobile notice layout checks also passed. Frontend build and the separate
+Worker TypeScript check passed; full-race physics/performance and unrelated
+screenshot baselines were not rerun for this presentation-only change.

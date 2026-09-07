@@ -1,4 +1,4 @@
-import { ROOM_CODE_PATTERN, type RoomSnapshot } from '../shared/OnlineProtocol';
+import { RECONNECT_MS, ROOM_CODE_PATTERN, type RoomSnapshot } from '../shared/OnlineProtocol';
 import type { TrackId } from '../game/ContentCatalog';
 import './online.css';
 
@@ -21,7 +21,7 @@ export class OnlineLobby {
   private message = 'Create a room, or enter a friend’s 8-character code.';
   private rosterSignature = '';
 
-  constructor(actions: LobbyActions) {
+  constructor(actions: LobbyActions, private readonly announce: (message: string) => void) {
     this.root.innerHTML = `
       <dialog id="online-panel" class="online-panel" aria-labelledby="online-title">
         <span class="flow-eyebrow">Race together · 2–4 players</span>
@@ -41,6 +41,7 @@ export class OnlineLobby {
           <label for="online-track">Course</label>
           <select id="online-track"><option value="sunset-circuit">Sunset Circuit</option><option value="storm-reef">Storm Reef</option></select>
           <ol id="online-players" class="online-players"></ol>
+          <p id="online-room-notice" class="online-presence-notice" role="status" aria-live="polite" hidden></p>
           <p id="online-hint"></p>
           <div class="online-actions"><button id="online-ready" class="menu-quiet" type="button">Ready</button>
             <button id="online-start" class="menu-primary" type="button">Start race</button>
@@ -52,6 +53,7 @@ export class OnlineLobby {
       <aside id="online-race-panel" class="online-race-panel" aria-label="Online race" hidden>
         <div class="online-race-heading"><strong id="online-race-code"></strong><span id="online-latency"></span></div>
         <ol id="online-standings" class="online-players"></ol>
+        <p id="online-race-notice" class="online-presence-notice" role="status" aria-live="polite" hidden></p>
         <p id="online-race-status" role="status"></p>
         <button id="online-race-leave" class="menu-quiet" type="button">Leave race</button>
       </aside>`;
@@ -92,6 +94,7 @@ export class OnlineLobby {
     this.element('#online-room').hidden = true;
     this.element('#online-title').textContent = 'Online Race';
     this.element('#online-race-panel').hidden = true;
+    this.clearPresenceNotice();
     this.status('Create a room, or enter a friend’s 8-character code.', false);
     this.dialog.showModal();
     this.element<HTMLInputElement>('#online-name').focus();
@@ -117,6 +120,7 @@ export class OnlineLobby {
   }
 
   update(snapshot: RoomSnapshot, playerId: string, connected: boolean, rtt: number): void {
+    this.updatePresenceNotice(snapshot, playerId);
     this.snapshot = snapshot;
     this.playerId = playerId;
     this.connected = connected;
@@ -153,13 +157,56 @@ export class OnlineLobby {
         : snapshot.phase === 'results' ? 'The host can take everyone back to the lobby for another race.' : 'The race continues while your menu is open.';
     const remaining = snapshot.race?.remaining;
     const raceSelf = snapshot.race?.racers.find((racer) => racer.id === playerId);
+    const opponents = snapshot.players.filter((player) => player.id !== playerId);
+    const allOpponentsLeft = opponents.length > 0 && opponents.every((player) => player.dnf && !player.connected);
+    const opponentsReconnecting = opponents.some((player) => !player.connected && !player.dnf);
     this.element('#online-race-status').textContent = !connected ? this.message : self?.dnf ? 'Did not finish'
       : raceSelf?.race.finished ? `Finished #${raceSelf.race.place} — waiting for racers`
-        : remaining != null ? `${Math.ceil(remaining)}s until final results` : 'Three laps · every checkpoint counts';
+        : allOpponentsLeft ? 'All opponents have left. Finish the race or leave the room.'
+          : opponentsReconnecting ? 'An opponent is reconnecting. Your race continues.'
+            : remaining != null ? `${Math.ceil(remaining)}s until final results` : 'Three laps · every checkpoint counts';
     this.renderRoster();
   }
 
   dispose(): void { this.abort.abort(); this.root.remove(); }
+
+  private clearPresenceNotice(): void {
+    for (const selector of ['#online-room-notice', '#online-race-notice']) {
+      this.element(selector).hidden = true;
+      this.element(selector).textContent = '';
+    }
+  }
+
+  private updatePresenceNotice(snapshot: RoomSnapshot, playerId: string): void {
+    const previous = this.snapshot;
+    if (!previous || previous.code !== snapshot.code) return;
+    if (previous.matchId !== snapshot.matchId) this.clearPresenceNotice();
+    const changes: string[] = [];
+    let announcement = 'PLAYER LEFT';
+    for (const before of previous.players) {
+      if (before.id === playerId) continue;
+      const after = snapshot.players.find((player) => player.id === before.id);
+      if (!after) changes.push(`${before.name} left the room.`);
+      else if (before.connected && !after.connected) {
+        changes.push(after.dnf ? `${after.name} left the race.`
+          : `${after.name} disconnected. Waiting up to ${RECONNECT_MS / 1000} seconds for reconnection.`);
+        if (!after.dnf) announcement = 'PLAYER DISCONNECTED';
+      } else if (!before.connected && after.connected) {
+        changes.push(`${after.name} reconnected.`);
+        announcement = 'PLAYER RECONNECTED';
+      } else if (!before.dnf && after.dnf && !after.connected) changes.push(`${after.name} did not reconnect and has left the race.`);
+    }
+    if (changes.length === 0) return;
+    if (previous.hostId !== snapshot.hostId && snapshot.hostId === playerId) changes.push('You are now the host.');
+    const message = changes.join(' ');
+    // Keep the last membership change visible; ordinary 20 Hz snapshots must not
+    // overwrite it or repeatedly announce it to assistive technology.
+    for (const selector of ['#online-room-notice', '#online-race-notice']) {
+      this.element(selector).textContent = message;
+      this.element(selector).hidden = false;
+    }
+    this.announce(announcement);
+  }
 
   private renderRoster(): void {
     const snapshot = this.snapshot!;
@@ -169,7 +216,7 @@ export class OnlineLobby {
     });
     const rows = players.map((player) => {
       const racer = snapshot.race?.racers.find((entry) => entry.id === player.id)?.race;
-      const status = player.dnf ? 'DNF' : !player.connected ? 'Reconnecting' : racer?.finished
+      const status = player.dnf ? (player.connected ? 'DNF' : 'Left race (DNF)') : !player.connected ? 'Reconnecting' : racer?.finished
         ? `${racer.finishTime?.toFixed(2)}s` : snapshot.phase === 'lobby' ? player.ready ? 'Ready' : 'Waiting' : `Lap ${racer?.displayLap ?? 1}/3`;
       return { slot: player.slot, text: `${player.name}${player.id === this.playerId ? ' (you)' : ''}${player.id === snapshot.hostId ? ' ★' : ''}`, status };
     });
