@@ -72,6 +72,7 @@ export class RoomSession {
         return null;
       case 'track':
         if (id !== this.hostId || this.phase !== 'lobby') return 'Only the host can choose a course in the lobby.';
+        if (this.trackId === message.trackId) return null;
         this.trackId = message.trackId;
         for (const entry of this.members.values()) entry.ready = false;
         return null;
@@ -110,6 +111,9 @@ export class RoomSession {
         return null;
       case 'rematch':
         if (id !== this.hostId || this.phase !== 'results') return 'Only the host can return everyone to the lobby after the race.';
+        for (const member of this.members.values()) {
+          if (!member.connected) this.members.delete(member.id);
+        }
         this.returnToLobby(now);
         return null;
       case 'leave':
@@ -200,8 +204,9 @@ export class RoomSession {
     this.matchId = '';
     this.lastActivity = now;
     for (const member of this.members.values()) {
-      if (!member.connected) this.members.delete(member.id);
-      else { member.ready = false; member.dnf = false; }
+      member.ready = false;
+      member.dnf = false;
+      member.loaded = false;
     }
     this.transferHost();
   }

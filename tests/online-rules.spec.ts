@@ -38,6 +38,8 @@ test('room enforces capacity, host ownership and ready/loading barriers without 
   expect(session.dispatch(seats[1].playerId, { type: 'start' }, 0)).toContain('host');
   expect(session.dispatch(seats[0].playerId, { type: 'start' }, 0)).toContain('ready');
   for (const seat of seats) session.dispatch(seat.playerId, { type: 'ready', ready: true }, 0);
+  session.dispatch(seats[0].playerId, { type: 'track', trackId: 'sunset-circuit' }, 0);
+  expect(session.snapshot().players.every((player) => player.ready)).toBe(true);
   session.dispatch(seats[0].playerId, { type: 'track', trackId: 'storm-reef' }, 0);
   expect(session.snapshot().players.every((player) => !player.ready)).toBe(true);
   for (const seat of seats) session.dispatch(seat.playerId, { type: 'ready', ready: true }, 0);
@@ -167,6 +169,35 @@ test('loading and idle rooms time out under a controlled clock', () => {
   for (const seat of [a, b]) session.dispatch(seat.playerId, { type: 'ping', sentAt: 330_000 }, 330_000);
   session.advance(330_000);
   expect(session.closed).toBe(true);
+});
+
+test('loading cancellation preserves reconnectable seats, but explicit departures and expired seats are removed', () => {
+  const session = room();
+  const a = session.join('A', undefined, 0);
+  const b = session.join('B', undefined, 0);
+  const begin = (host: string, now: number) => {
+    for (const seat of [a, b]) session.dispatch(seat.playerId, { type: 'ready', ready: true }, now);
+    expect(session.dispatch(host, { type: 'start' }, now)).toBeNull();
+    expect(session.phase).toBe('loading');
+  };
+  begin(a.playerId, 0);
+  session.disconnect(a.playerId, 100);
+  expect(session.phase).toBe('lobby');
+  expect(session.snapshot().players).toHaveLength(2);
+  expect(session.snapshot().players.every((player) => !player.ready)).toBe(true);
+  expect(session.join('A', a.token, 200).playerId).toBe(a.playerId);
+  begin(b.playerId, 300);
+  session.disconnect(a.playerId, 400);
+  session.dispatch(b.playerId, { type: 'ping', sentAt: 15_400 }, 15_400);
+  session.advance(15_400);
+  expect(() => session.join('A', a.token, 15_400)).toThrow('expired');
+  expect(session.snapshot().players).toHaveLength(1);
+  const c = session.join('C', undefined, 15_400);
+  for (const seat of [b, c]) session.dispatch(seat.playerId, { type: 'ready', ready: true }, 15_400);
+  session.dispatch(b.playerId, { type: 'start' }, 15_400);
+  session.disconnect(c.playerId, 15_401, true);
+  expect(session.phase).toBe('lobby');
+  expect(session.snapshot().players).toHaveLength(1);
 });
 
 test('a finisher keeps the recorded result after leaving or losing connection', () => {

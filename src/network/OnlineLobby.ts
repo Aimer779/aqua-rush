@@ -162,8 +162,9 @@ export class OnlineLobby {
     const remaining = snapshot.race?.remaining;
     const raceSelf = snapshot.race?.racers.find((racer) => racer.id === playerId);
     const opponents = snapshot.players.filter((player) => player.id !== playerId);
-    const allOpponentsLeft = opponents.length > 0 && opponents.every((player) => player.dnf && !player.connected);
-    const opponentsReconnecting = opponents.some((player) => !player.connected && !player.dnf);
+    const finished = (id: string) => !!snapshot.race?.racers.find((racer) => racer.id === id)?.race.finished;
+    const allOpponentsLeft = opponents.length > 0 && opponents.every((player) => !player.connected && (player.dnf || finished(player.id)));
+    const opponentsReconnecting = opponents.some((player) => !player.connected && !player.dnf && !finished(player.id));
     this.element('#online-race-status').textContent = !connected ? this.message : self?.dnf ? 'Did not finish'
       : raceSelf?.race.finished ? `Finished #${raceSelf.race.place} — waiting for racers`
         : allOpponentsLeft ? 'All opponents have left. Finish the race or leave the room.'
@@ -192,9 +193,10 @@ export class OnlineLobby {
       const after = snapshot.players.find((player) => player.id === before.id);
       if (!after) changes.push(`${before.name} left the room.`);
       else if (before.connected && !after.connected) {
-        changes.push(after.dnf ? `${after.name} left the race.`
+        const finished = snapshot.race?.racers.find((racer) => racer.id === after.id)?.race.finished;
+        changes.push(finished ? `${after.name} left after finishing. Their result is saved.` : after.dnf ? `${after.name} left the race.`
           : `${after.name} disconnected. Waiting up to ${RECONNECT_MS / 1000} seconds for reconnection.`);
-        if (!after.dnf) announcement = 'PLAYER DISCONNECTED';
+        if (!after.dnf && !finished) announcement = 'PLAYER DISCONNECTED';
       } else if (!before.connected && after.connected) {
         changes.push(`${after.name} reconnected.`);
         announcement = 'PLAYER RECONNECTED';
@@ -220,8 +222,9 @@ export class OnlineLobby {
     });
     const rows = players.map((player) => {
       const racer = snapshot.race?.racers.find((entry) => entry.id === player.id)?.race;
-      const status = player.dnf ? (player.connected ? 'DNF' : 'Left race (DNF)') : !player.connected ? 'Reconnecting' : racer?.finished
-        ? `${racer.finishTime?.toFixed(2)}s` : snapshot.phase === 'lobby' ? player.ready ? 'Ready' : 'Waiting' : `Lap ${racer?.displayLap ?? 1}/3`;
+      const status = racer?.finished ? `${racer.finishTime?.toFixed(2)}s`
+        : player.dnf ? (player.connected ? 'DNF' : 'Left race (DNF)') : !player.connected ? 'Reconnecting'
+          : snapshot.phase === 'lobby' ? player.ready ? 'Ready' : 'Waiting' : `Lap ${racer?.displayLap ?? 1}/3`;
       return { slot: player.slot, text: `${player.name}${player.id === this.playerId ? ' (you)' : ''}${player.id === snapshot.hostId ? ' ★' : ''}`, status };
     });
     const signature = JSON.stringify(rows);

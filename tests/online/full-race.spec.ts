@@ -65,6 +65,12 @@ for (const trackId of ['sunset-circuit', 'storm-reef'] as const) {
       peers[0].send({ type: 'rematch' });
       const lobby = await peers[0].wait((message): message is RoomSnapshot => message.type === 'state' && message.phase === 'lobby' && message.matchId === '' && message.players.length === 4);
       expect(lobby.players.every((player) => !player.ready)).toBe(true);
+      for (const peer of peers) peer.send({ type: 'ready', ready: true });
+      await peers[0].wait((message) => message.type === 'state' && message.phase === 'lobby' && message.players.every((player) => player.ready));
+      peers[0].send({ type: 'start' });
+      const next = await peers[0].wait((message): message is RoomSnapshot => message.type === 'state'
+        && message.matchId !== result.matchId && !!message.race?.events.some((entry) => 'type' in entry.event && entry.event.type === 'countdown'));
+      expect(next.race!.events.length).toBeGreaterThan(0);
     } finally { for (const peer of peers) peer.close(); }
   });
 }

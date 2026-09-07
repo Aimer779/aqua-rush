@@ -78,6 +78,10 @@ Simulation runs at a fixed 60 Hz with snapshots sent every 50 ms. Clients send
 sequenced controls, never authoritative positions, finish claims or frame deltas.
 The server chooses how many simulation steps run. Message arrival cannot postpone
 the simulation timer. Catch-up after a runtime stall is bounded to 250 ms per tick.
+Ordinary commands are coalesced into a 50 ms update; rejected commands do not
+broadcast, and unchanged snapshots are suppressed. Membership joins still send
+an immediate state. Race events are sent once over the ordered WebSocket stream;
+reconnection restores the full race state without replaying old effects.
 
 The local boat predicts the shared motion rules, restores acknowledged snapshots
 and replays unacknowledged inputs. Small corrections blend visually; recovery and
@@ -93,6 +97,9 @@ and gate rewards are authoritative; prediction does not replay reward events.
 - Disconnects clear controls and retain the seat for 15 seconds. Unfinished racers
   become DNF after that deadline; finished results remain valid. Host management
   transfers to a connected player without moving the simulation.
+- A disconnect while loading cancels the start and returns everyone to the lobby,
+  preserving the disconnected seat until its 15-second deadline. Explicit leavers
+  release their lobby seat immediately. Starting again requires everyone ready.
 - Opponent departures, disconnections and reconnections show a named notice in the
   lobby/race panel and the race HUD. The notice persists through ordinary snapshots;
   when all opponents have left, the remaining racer is told they can finish or leave.

@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { parseClientMessage, PROTOCOL_VERSION, type ServerMessage } from '../src/shared/OnlineProtocol';
+import { parseClientMessage, PROTOCOL_VERSION, SNAPSHOT_INTERVAL_MS, type ServerMessage } from '../src/shared/OnlineProtocol';
 import { RoomSession } from './RoomSession';
 
 type Connection = { playerId: string | null; openedAt: number; windowAt: number; messages: number };
@@ -11,6 +11,9 @@ export class RaceRoom extends DurableObject<Env> {
   private readonly connections = new Map<WebSocket, Connection>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private timerDue = 0;
+  private lastBroadcast = '';
+  private eventMatchId = '';
+  private eventSequence = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -62,25 +65,39 @@ export class RaceRoom extends DurableObject<Env> {
         const welcome = session.join(message.name, message.token, now);
         connection.playerId = welcome.playerId;
         this.send(socket, { type: 'welcome', ...welcome, version: PROTOCOL_VERSION });
-        this.broadcast();
+        this.broadcast(true);
       } catch (error) { this.reject(socket, error instanceof Error ? error.message : 'Could not join.'); }
       return;
     }
     if (!connection.playerId) { this.reject(socket, 'Join a room first.'); return; }
     const error = session.dispatch(connection.playerId, message, now);
-    if (error) this.send(socket, { type: 'error', message: error });
+    if (error) { this.send(socket, { type: 'error', message: error }); return; }
     if (message.type === 'ping') { this.send(socket, { type: 'pong', sentAt: message.sentAt }); return; }
     if (message.type === 'input') return;
     if (message.type === 'leave') { this.close(socket, 1000, 'Left room'); }
-    this.broadcast();
-    this.schedule();
+    // Coalesce commands, including valid rapid toggles, into one snapshot tick.
+    this.schedule(SNAPSHOT_INTERVAL_MS);
   }
 
-  private broadcast(): void {
+  private broadcast(force = false): void {
     if (!this.session) return;
     const state = this.session.snapshot();
+    if (state.matchId !== this.eventMatchId) {
+      this.eventMatchId = state.matchId;
+      this.eventSequence = 0;
+    }
+    // WebSockets deliver in order. Durable race state restores reconnecting
+    // clients; past sound/notification events do not need to be replayed.
+    if (state.race) {
+      state.race.events = state.race.events.filter((entry) => entry.id > this.eventSequence);
+      this.eventSequence = state.race.events.at(-1)?.id ?? this.eventSequence;
+    }
     const encoded = JSON.stringify(state, (_key, value: unknown) =>
       typeof value === 'number' && !Number.isInteger(value) ? Math.round(value * 100_000) / 100_000 : value);
+    // A rapid reconnect can restore exactly the previous state, but its new
+    // socket still needs an initial snapshot.
+    if (!force && encoded === this.lastBroadcast) return;
+    this.lastBroadcast = encoded;
     for (const [socket, connection] of this.connections) {
       if (!connection.playerId) continue;
       if (!this.session.members.get(connection.playerId)?.connected) { this.close(socket, 4000, 'Connection expired'); continue; }
@@ -88,9 +105,9 @@ export class RaceRoom extends DurableObject<Env> {
     }
   }
 
-  private schedule(): void {
+  private schedule(requestedDelay = 1000): void {
     const active = this.session?.phase === 'countdown' || this.session?.phase === 'racing';
-    const delay = active ? 50 : 1000;
+    const delay = active ? SNAPSHOT_INTERVAL_MS : requestedDelay;
     const due = Date.now() + delay;
     // Incoming messages may bring a tick forward, but cannot postpone it forever.
     if (this.timer !== null && this.timerDue <= due) return;
