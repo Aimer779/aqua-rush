@@ -1,0 +1,19 @@
+import type { WaveHandlingState } from '../entities/ArcadeBoat';
+
+export const BOAT_NUMBERS = [
+  'speed', 'heading', 'boost', 'driftCharge', 'driftQuality', 'contact',
+  'landingIntensity', 'steering', 'throttle', 'currentSteer', 'currentThrottle',
+  'driftDirection', 'miniBoostTimer', 'miniBoostStrength', 'verticalVelocity',
+] as const;
+export const BOAT_FLAGS = ['boosting', 'ordinaryBoosting', 'miniBoosting', 'drifting', 'airborne'] as const;
+
+/** Includes hidden timers and wave feedback so a restored boat can replay inputs. */
+export type BoatState = {
+  position: [number, number, number];
+  velocity: [number, number, number];
+  quaternion: [number, number, number, number];
+  visualRotation: [number, number, number];
+  numbers: Record<(typeof BOAT_NUMBERS)[number], number>;
+  flags: Record<(typeof BOAT_FLAGS)[number], boolean>;
+  waveHandling: WaveHandlingState;
+};

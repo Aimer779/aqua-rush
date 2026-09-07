@@ -8,6 +8,10 @@ Production-feature, medium scope, refactor-open. V3 is a complete browser arcade
 
 Choose Quick Race or Time Trial → choose Sunset Circuit or Storm Reef → clear the countdown → steer/boost/drift across open water → pass 12 directional sectors per lap → choose optional Boost/Drift Gate lines → complete three laps → compare placement or records → retry, switch course, or return to menu.
 
+Online Race extends this loop with a 2–4 player room-code lobby, shared loading/countdown,
+server-authoritative race rules and results, and rematches. See [online multiplayer](online-multiplayer.md)
+for the current networking and Cloudflare deployment contract.
+
 ## Level plan
 
 Sunset Circuit teaches broad lines, readable turns, and optional rewards in warm high-contrast scenery. Storm Reef raises the skill floor with cross-swell airtime, a hairpin, rocky fast channel, wide sweeper, closing chicane, and a riskier outer reward line. Both allow 150–250 units of harmless exploration outside the suggested line.

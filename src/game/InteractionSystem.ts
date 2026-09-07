@@ -115,4 +115,12 @@ export class InteractionSystem {
       failureCount: gate.failureCount,
     }));
   }
+
+  /** Presentation-only state from the authoritative room; no rewards are granted here. */
+  applyRemoteStates(states: InteractionState[]): void {
+    for (const state of states) {
+      const gate = this.gates.find((entry) => entry.id === state.id);
+      if (gate) Object.assign(gate, state);
+    }
+  }
 }

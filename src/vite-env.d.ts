@@ -1,5 +1,14 @@
 /// <reference types="vite/client" />
 
+interface Window {
+  __AQUA_ONLINE__?: {
+    state: import('./shared/OnlineProtocol').RoomSnapshot;
+    connected: boolean;
+    rtt: number;
+    correction: number;
+  };
+}
+
 type DiagnosticRacePhase = 'countdown' | 'racing' | 'finished';
 
 interface DiagnosticRacer {
