@@ -6,6 +6,7 @@ interface Window {
     connected: boolean;
     rtt: number;
     correction: number;
+    interpolation: ReturnType<import('./network/SnapshotInterpolation').SnapshotInterpolation['diagnostics']> | null;
   };
 }
 

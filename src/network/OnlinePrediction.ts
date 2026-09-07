@@ -1,4 +1,5 @@
-import { Quaternion, Vector3 } from 'three';
+import { Vector3 } from 'three';
+import { SnapshotInterpolation } from './SnapshotInterpolation';
 import { ArcadeBoat, DEFAULT_PLAYER_TUNING } from '../entities/ArcadeBoat';
 import { getTrackDefinition, type TrackId } from '../game/ContentCatalog';
 import { WaveSurface } from '../systems/WaveSurface';
@@ -13,8 +14,7 @@ export class OnlinePrediction {
   private readonly waves: WaveSurface;
   private readonly pending: PredictedInput[] = [];
   private readonly correctionOffset = new Vector3();
-  private readonly quaternion = new Quaternion();
-  private previous: RaceSnapshot | null = null;
+  readonly interpolation = new SnapshotInterpolation();
   private latest: RaceSnapshot | null = null;
   private receivedAt = 0;
   private sequence = 0;
@@ -32,10 +32,11 @@ export class OnlinePrediction {
     if (this.latest && snapshot.tick <= this.latest.tick) return;
     const self = snapshot.racers.find((racer) => racer.id === this.playerId);
     if (!self) return;
+    this.interpolation.receive(snapshot, now);
+    const initialized = this.latest !== null;
     const oldPosition = this.boat.group.position.clone();
     const recovered = this.recovery !== self.recovery;
     this.recovery = self.recovery;
-    this.previous = this.latest;
     this.latest = snapshot;
     this.receivedAt = now;
     this.boat.restoreState(self.body);
@@ -45,12 +46,13 @@ export class OnlinePrediction {
     this.predictedElapsed = snapshot.elapsed;
     for (const input of this.pending) this.simulate(input.intent);
     this.correction = oldPosition.distanceTo(this.boat.group.position);
-    if (!this.previous || recovered || this.correction > 5) this.correctionOffset.set(0, 0, 0);
+    if (!initialized || recovered || this.correction > 5) this.correctionOffset.set(0, 0, 0);
     else this.correctionOffset.add(oldPosition.sub(this.boat.group.position));
   }
 
   update(delta: number, intent: RaceIntent, connected: boolean): void {
     if (!this.latest) return;
+    this.interpolation.update(this.now());
     this.correctionOffset.multiplyScalar(Math.exp(-12 * delta));
     if (!connected || this.now() - this.receivedAt > 500 || this.latest.phase === 'finished') return;
     this.accumulator += Math.min(delta, 0.1);
@@ -76,17 +78,7 @@ export class OnlinePrediction {
       state.position = new Vector3(...state.position).add(this.correctionOffset).toArray();
       return state;
     }
-    const current = this.latest?.racers.find((racer) => racer.id === id);
-    if (!current) return null;
-    const old = this.previous?.racers.find((racer) => racer.id === id);
-    if (!old || old.recovery !== current.recovery) return current.body;
-    const interval = Math.max(1, (this.latest!.elapsed - this.previous!.elapsed) * 1000);
-    const alpha = Math.min(1, Math.max(0, (now - this.receivedAt) / interval));
-    return {
-      ...current.body,
-      position: new Vector3(...old.body.position).lerp(new Vector3(...current.body.position), alpha).toArray(),
-      quaternion: this.quaternion.fromArray(old.body.quaternion).slerp(new Quaternion(...current.body.quaternion), alpha).toArray(),
-    };
+    return this.interpolation.body(id, now);
   }
 
   get elapsed(): number { return this.predictedElapsed; }

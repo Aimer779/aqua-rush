@@ -85,7 +85,10 @@ reconnection restores the full race state without replaying old effects.
 
 The local boat predicts the shared motion rules, restores acknowledged snapshots
 and replays unacknowledged inputs. Small corrections blend visually; recovery and
-large corrections snap to server truth. Other boats interpolate snapshots. Full
+large corrections snap to server truth. Other boats use a continuous buffered
+playback clock with 100–250 ms of adaptive jitter protection, including smooth
+boat attitude and recovery boundaries. See [remote smoothness](online-smoothness.md)
+for the measured comparison and diagnostic procedure. Full
 state includes drift/boost timers, vertical velocity and wave feedback. Collisions
 and gate rewards are authoritative; prediction does not replay reward events.
 
