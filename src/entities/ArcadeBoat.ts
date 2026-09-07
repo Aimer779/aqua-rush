@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import type { RaceIntent } from '../core/InputController';
+import type { RaceIntent } from '../shared/RaceIntent';
 import type { WaveSurface } from '../systems/WaveSurface';
+import { BOAT_FLAGS, BOAT_NUMBERS, type BoatState } from '../shared/BoatState';
 
 export type BoatTuning = {
   maxForwardSpeed: number;
@@ -102,12 +103,15 @@ export class ArcadeBoat {
   private miniBoostStrength = 0;
   private verticalVelocity = 0;
 
-  constructor(readonly id: string, color: THREE.ColorRepresentation, model?: THREE.Object3D) {
+  /** A null model runs the same simulation without geometry or global AI registration. */
+  constructor(readonly id: string, color: THREE.ColorRepresentation, model?: THREE.Object3D | null) {
     this.group.name = `racer-${id}`;
     this.visualRoot.name = `racer-visual-${id}`;
     this.group.add(this.visualRoot);
-    this.visualRoot.add(model ?? this.createFallbackModel(color));
-    ArcadeBoat.activeBoats.add(this);
+    if (model !== null) {
+      this.visualRoot.add(model ?? this.createFallbackModel(color));
+      ArcadeBoat.activeBoats.add(this);
+    }
   }
 
   static getActiveBoats(): ReadonlySet<ArcadeBoat> {
@@ -390,6 +394,28 @@ export class ArcadeBoat {
     this.currentThrottle = 0;
     this.group.quaternion.setFromAxisAngle(WORLD_UP, heading);
     this.visualRoot.rotation.set(0, 0, 0);
+  }
+
+  captureState(): BoatState {
+    return {
+      position: this.group.position.toArray(),
+      velocity: this.velocity.toArray(),
+      quaternion: this.group.quaternion.toArray(),
+      visualRotation: [this.visualRoot.rotation.x, this.visualRoot.rotation.y, this.visualRoot.rotation.z],
+      numbers: Object.fromEntries(BOAT_NUMBERS.map((key) => [key, this[key]])) as BoatState['numbers'],
+      flags: Object.fromEntries(BOAT_FLAGS.map((key) => [key, this[key]])) as BoatState['flags'],
+      waveHandling: { ...this.waveHandling },
+    };
+  }
+
+  restoreState(state: BoatState): void {
+    this.group.position.fromArray(state.position);
+    this.velocity.fromArray(state.velocity);
+    this.group.quaternion.fromArray(state.quaternion);
+    this.visualRoot.rotation.set(...state.visualRotation);
+    for (const key of BOAT_NUMBERS) this[key] = state.numbers[key];
+    for (const key of BOAT_FLAGS) this[key] = state.flags[key];
+    Object.assign(this.waveHandling, state.waveHandling);
   }
 
   dispose(): void {

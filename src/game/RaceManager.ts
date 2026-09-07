@@ -150,13 +150,26 @@ export class RaceManager {
   getState(id: string): RacerRaceState {
     const state = this.states.get(id);
     if (!state) throw new Error(`Unknown racer: ${id}`);
-    return { ...state };
+    const { previousProgress: _progress, previousPosition: _position,
+      wrongWayDuration: _duration, lapStartedAt: _started, ...publicState } = state;
+    return publicState;
   }
 
   getAllStates(): RacerRaceState[] {
     return [...this.states.values()]
       .sort((a, b) => a.place - b.place)
-      .map((state) => ({ ...state }));
+      .map((state) => this.getState(state.id));
+  }
+
+  /** A presentation-only replica; network clients never advance this manager. */
+  applyRemoteState(phase: RacePhase, countdown: number, raceTime: number, racers: RacerRaceState[]): void {
+    this.phase = phase;
+    this.countdown = countdown;
+    this.raceTime = raceTime;
+    for (const racer of racers) {
+      const state = this.states.get(racer.id);
+      if (state) Object.assign(state, racer);
+    }
   }
 
   raceScore(id: string): number {
@@ -249,7 +262,8 @@ export class RaceManager {
             this.validation.accepted += 1;
             this.validation.lastReason = 'accepted';
             this.validation.lastIndex = state.nextCheckpoint;
-            this.passCheckpoint(state);
+            const fraction = stepDistance > 0 ? state.previousPosition.distanceTo(crossing.intersection) / stepDistance : 1;
+            this.passCheckpoint(state, this.raceTime - delta + delta * THREE.MathUtils.clamp(fraction, 0, 1));
           } else if (crossing.reason !== 'no-crossing') {
             this.validation.rejected += 1;
             this.validation.lastReason = crossing.reason;
@@ -266,7 +280,7 @@ export class RaceManager {
     }
   }
 
-  private passCheckpoint(state: InternalRaceState): void {
+  private passCheckpoint(state: InternalRaceState, crossingTime = this.raceTime): void {
     if (state.finished) return;
     const checkpoint = state.nextCheckpoint;
     state.checkpointCount += 1;
@@ -276,14 +290,14 @@ export class RaceManager {
 
     state.nextCheckpoint = 0;
     state.lap += 1;
-    state.lastLap = Math.max(0, this.raceTime - state.lapStartedAt);
+    state.lastLap = Math.max(0, crossingTime - state.lapStartedAt);
     state.bestLap = state.bestLap === null ? state.lastLap : Math.min(state.bestLap, state.lastLap);
-    state.lapStartedAt = this.raceTime;
+    state.lapStartedAt = crossingTime;
     state.displayLap = Math.min(this.totalLaps, state.lap + 1);
     this.events.push({ type: 'lap', racerId: state.id, lap: state.lap });
     if (state.lap >= this.totalLaps) {
       state.finished = true;
-      state.finishTime = this.raceTime;
+      state.finishTime = crossingTime;
       state.displayLap = this.totalLaps;
       this.updatePlacements();
       this.events.push({ type: 'racer-finish', racerId: state.id, place: state.place });

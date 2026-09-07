@@ -1,6 +1,6 @@
 # Aqua Rush
 
-Aqua Rush V3 is a complete cel-shaded arcade boat racing game built with Vite, Three.js, TypeScript, and ES modules. It has exactly two courses and two modes: race three rivals in Quick Race, or chase persistent per-course records in solo Time Trial. Both modes use three laps, directional checkpoint planes, open-water navigation, shared CPU/GPU wave truth, course interactions, responsive desktop/mobile UI, pause/recovery, results, and fast retry.
+Aqua Rush is a cel-shaded arcade boat racing game built with Vite, Three.js, TypeScript, and ES modules. It has two courses: race three AI rivals in Quick Race, chase persistent per-course records in solo Time Trial, or race 2–4 friends in Online Race using a room code. All modes use three laps, directional checkpoint planes, open-water navigation, shared CPU/GPU wave truth, course interactions, and responsive desktop/mobile controls.
 
 ## Run the game
 
@@ -21,6 +21,17 @@ npm run preview
 ```
 
 The preview server uses <http://127.0.0.1:4188>.
+
+## Online Race
+
+For the integrated game and room server, run `npm run cf:dev` and open
+<http://127.0.0.1:8787>. Choose **Online Race**, create a room, and share its
+eight-character code. The host picks a course; everyone readies up before starting.
+
+Deploy the frontend and room service together on Cloudflare with
+`npx wrangler login` followed by `npm run cf:deploy`. This uses Workers Static
+Assets and one Durable Object per room. See [online play and deployment](docs/online-multiplayer.md)
+for setup, room rules, usage limits, and verification.
 
 ## Controls
 
@@ -50,7 +61,7 @@ Audio unlocks on the first keyboard or pointer gesture. If Web Audio is unavaila
 - **Reward:** placement or persistent record improvement, plus Boost Gates and drift-validated Drift Gates reinforced by HUD, VFX, camera, and synthesized audio.
 - **Setback/retry:** collisions scrub speed instead of ending the race. The finish screen and `R`/`Enter` provide a fast full reset.
 - **Skill expression:** hold the fastest line, anticipate turns, avoid contact, and spend boost where the reduced grip is manageable.
-- **Non-goals:** infinite/projected-grid water, rigid-body hydrodynamics, career progression, online play, weapons, ghosts, cinematic story scenes, or more than two courses.
+- **Non-goals:** infinite/projected-grid water, rigid-body hydrodynamics, career progression, public matchmaking, accounts, weapons, ghosts, cinematic story scenes, or more than two courses.
 
 Core loop:
 
@@ -62,6 +73,7 @@ Core loop:
 - **Storm Reef:** cold overcast water, stronger cross-swell, rocky channel, hairpin, broad sweeper, closing chicane, rock arch, warning lights, wreck silhouettes, and a risky reward line.
 - **Quick Race:** player plus KAI, MIRA, and NOX; three laps; placement results.
 - **Time Trial:** player only; three laps; current/best lap, best total, PB comparison, new-record results, and versioned local persistence.
+- **Online Race:** 2–4 human racers; room codes, shared countdown, authoritative results, short reconnect window, and return-to-lobby rematches. Pause affects only your controls; online races do not write Time Trial records.
 
 The ocean is finite: roughly 800×800 units are playable and 1200×1200 are visible through near/mid/far LOD. Leaving the recommended line never causes a corridor collision, forced slowdown, or automatic teleport. Race legality comes only from ordered, back-to-front directional checkpoint crossings. Use `X` or the Pause menu Recovery action when desired.
 
@@ -73,6 +85,7 @@ The ocean is finite: roughly 800×800 units are playable and 1200×1200 are visi
 - `src/assets`: shared toon materials, four procedural boat silhouettes, finite LOD shader ocean, wave-following guide, instanced gates/markers, two world kits, navigation beacon, and pooled VFX.
 - `src/systems`: shared Gerstner wave truth, persistent collision separation, spring chase camera, responsive HUD, Web Audio synthesis, and diagnostics.
 - `tests`: race rules, real keyboard control, AI movement, natural full-race bot checks, pause/mute behavior, 1920×1080 performance, canvas smoke tests, and truthful deterministic visual states.
+- `src/shared`, `src/network`, `server`: shared headless race simulation, client prediction/interpolation, room UI and the Cloudflare Worker/Durable Object service.
 
 The project uses custom transform-driven arcade motion and simple boat/visible-rock proxies. There is no race-corridor collision and no rigid-body physics dependency. See [TrackDefinition](docs/track-definition.md) and [save schema](docs/save-schema.md) for the stable data contracts.
 
@@ -91,6 +104,10 @@ npm run build
 npx playwright test
 npm run verify:visual
 ```
+
+Online checks: `npm run cf:check` validates the Worker separately, and
+`npm run test:online` tests the integrated Cloudflare runtime. Full four-client
+race verification is documented in [online multiplayer](docs/online-multiplayer.md#verify).
 
 For the measured production-preview performance gate, start `npm run preview`, then run in PowerShell:
 
@@ -134,5 +151,6 @@ Runtime/tool dependencies and the licence identifiers reported by their packages
 | TypeScript | Type checking | Apache-2.0 |
 | Playwright | Browser QA | Apache-2.0 |
 | pngjs | Canvas pixel inspection | MIT |
+| Wrangler | Cloudflare development and deployment | MIT OR Apache-2.0 |
 
 These packages retain their own upstream licences in `node_modules` after installation.

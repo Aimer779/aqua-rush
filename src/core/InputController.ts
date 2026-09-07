@@ -1,10 +1,6 @@
 import * as THREE from 'three';
 
-export type RaceIntent = {
-  throttle: number;
-  steer: number;
-  boost: boolean;
-};
+import type { RaceIntent } from '../shared/RaceIntent';
 
 type PointerState = {
   active: boolean;

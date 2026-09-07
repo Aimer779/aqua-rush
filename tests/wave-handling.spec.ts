@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import * as THREE from 'three';
-import type { RaceIntent } from '../src/core/InputController';
+import type { RaceIntent } from '../src/shared/RaceIntent';
 import { ArcadeBoat, DEFAULT_PLAYER_TUNING } from '../src/entities/ArcadeBoat';
 import { WaveSurface, type GerstnerWave } from '../src/systems/WaveSurface';
 

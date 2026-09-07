@@ -1,5 +1,6 @@
 import type { Object3D } from 'three';
-import type { InputController, RaceIntent } from '../core/InputController';
+import type { InputController } from '../core/InputController';
+import type { RaceIntent } from '../shared/RaceIntent';
 import type { WaveSurface } from '../systems/WaveSurface';
 import { ArcadeBoat, DEFAULT_PLAYER_TUNING, type BoatTuning } from './ArcadeBoat';
 

@@ -26,6 +26,8 @@ import { InteractionSystem, type InteractionEvent } from './InteractionSystem';
 import { RaceManager, type RaceEvent, type RacerFrame } from './RaceManager';
 import { SaveStore, SAVE_SCHEMA_VERSION, type SaveData } from './SaveStore';
 import { RaceTrack } from './Track';
+import { OnlineController } from '../network/OnlineController';
+import { NEUTRAL_INPUT, type RoomPhase, type RoomSnapshot } from '../shared/OnlineProtocol';
 
 const AI_CONFIG = [
   { id: 'coral', name: 'KAI', color: ARCADE_PALETTE.coral, modelProfile: 'kai', personality: 'aggressive', laneOffset: 1.45, speedScale: 0.98, steeringScale: 1.05, lookAhead: 0.034 },
@@ -49,6 +51,11 @@ export class Game {
   private readonly player: Player;
   private readonly aiRacers: AIRacer[];
   private readonly allBoats: ArcadeBoat[];
+  private readonly originalBoatModels: BoatModel[];
+  private readonly online: OnlineController;
+  private readonly onlineBoats = new Map<string, ArcadeBoat>();
+  private onlineEventSequence = 0;
+  private onlinePhase: RoomPhase | null = null;
   private activeBoats: ArcadeBoat[] = [];
   private race!: RaceManager;
   private track!: RaceTrack;
@@ -122,6 +129,7 @@ export class Game {
       return new AIRacer(profile.id, profile.color, profile, model.root);
     });
     this.allBoats = [this.player, ...this.aiRacers];
+    this.originalBoatModels = this.allBoats.map((boat) => this.boatModels.get(boat.id)!);
     this.allBoats.forEach((boat) => this.scene.add(boat.group));
     this.scene.add(this.vfx.root);
 
@@ -151,6 +159,21 @@ export class Game {
     this.installTestHooks();
     resizeRenderer(this.renderer, this.camera, this.tuning.maxDpr);
     this.publishDiagnostics();
+    this.online = new OnlineController({
+      enter: () => { this.pausedForScreenshot = false; this.setPaused(false); this.setFlow('title'); },
+      leave: () => {
+        this.restoreBoatModels();
+        this.onlineBoats.clear();
+        this.onlinePhase = null;
+        this.configureTrack(this.saveData.lastSelection.trackId);
+        this.configureRace(this.saveData.lastSelection.mode);
+        this.resetRace(false);
+        this.setFlow('title');
+      },
+      prepare: (snapshot, playerId) => this.prepareOnlineRace(snapshot, playerId),
+      snapshot: (snapshot) => this.applyOnlineSnapshot(snapshot),
+      notice: (message) => this.hud.announce(message, 'info'),
+    });
   }
 
   start(): void {
@@ -159,6 +182,7 @@ export class Game {
 
   /** Deterministic fixed-step bridge used by the packaged web-game client. */
   advanceTime(milliseconds: number): void {
+    if (this.online?.active) return;
     const steps = THREE.MathUtils.clamp(Math.round(Math.max(0, milliseconds) / (1000 / 60)), 1, 600);
     this.pausedForScreenshot = false;
     for (let step = 0; step < steps; step += 1) this.update(1 / 60);
@@ -204,13 +228,14 @@ export class Game {
 
   dispose(): void {
     this.loop.stop();
+    this.online.dispose();
     window.removeEventListener('keydown', this.handleFullscreen);
     this.input.dispose();
     this.audio.dispose();
     this.hud.dispose();
     this.debugTools.dispose();
     this.allBoats.forEach((boat) => boat.dispose());
-    this.boatModels.forEach((model) => model.dispose());
+    this.originalBoatModels.forEach((model) => model.dispose());
     this.disposeTrackVisuals();
     this.vfx.dispose();
     this.materials.dispose();
@@ -224,6 +249,7 @@ export class Game {
   private update(delta: number): void {
     this.frame += 1;
     resizeRenderer(this.renderer, this.camera, this.tuning.maxDpr);
+    if (this.online?.active) { this.updateOnline(delta); return; }
     if (this.pausedForScreenshot) {
       this.publishDiagnostics();
       return;
@@ -285,6 +311,112 @@ export class Game {
     this.renderer.render(this.scene, this.camera);
   }
 
+  private restoreBoatModels(): void {
+    for (const boat of this.allBoats) boat.visualRoot.clear();
+    this.allBoats.forEach((boat, index) => {
+      const model = this.originalBoatModels[index];
+      boat.visualRoot.add(model.root);
+      this.boatModels.set(boat.id, model);
+    });
+  }
+
+  private prepareOnlineRace(snapshot: RoomSnapshot, playerId: string): void {
+    this.setPaused(false);
+    this.configureTrack(snapshot.trackId);
+    this.config = makeRaceConfig('quick-race', snapshot.trackId);
+    this.onlineBoats.clear();
+    // The camera keeps its local player object. Network IDs and model slots remain
+    // stable across clients; the map is only a rendering adapter, never race identity.
+    const players = [...snapshot.players].sort((a, b) => a.id === playerId ? -1 : b.id === playerId ? 1 : a.slot - b.slot);
+    this.activeBoats = this.allBoats.slice(0, players.length);
+    for (const boat of this.allBoats) { boat.visualRoot.clear(); boat.group.visible = false; }
+    players.forEach((player, index) => {
+      const boat = this.allBoats[index];
+      const model = this.originalBoatModels[player.slot];
+      boat.visualRoot.add(model.root);
+      boat.group.visible = true;
+      this.boatModels.set(boat.id, model);
+      this.onlineBoats.set(player.id, boat);
+      const state = snapshot.race?.racers.find((entry) => entry.id === player.id);
+      if (state) boat.restoreState(state.body);
+    });
+    this.race = new RaceManager(players.map((player, index) => ({
+      id: this.allBoats[index].id, name: player.name, isPlayer: player.id === playerId,
+    })));
+    this.onlineEventSequence = Math.max(0, ...snapshot.race!.events.map((entry) => entry.id));
+    this.onlinePhase = null;
+    this.lastCountdownPresentation = null;
+    this.lastBoosting = this.lastMiniBoosting = false;
+    this.lastLandingByBoat.clear();
+    this.audio.reset();
+    this.hud.hideResults();
+    this.hud.updateTimeTrial(null);
+    this.cameraRig.snapTo(this.player);
+  }
+
+  private applyOnlineSnapshot(snapshot: RoomSnapshot): void {
+    const race = snapshot.race;
+    if (!race) {
+      if (this.onlinePhase !== 'lobby') { this.setPaused(false); this.setFlow('title'); }
+      this.onlinePhase = 'lobby';
+      return;
+    }
+    const wasFinished = this.race.getState(this.player.id).finished;
+    const racers = race.racers.flatMap((entry) => {
+      const boat = this.onlineBoats.get(entry.id);
+      return boat ? [{ ...entry.race, id: boat.id, isPlayer: boat === this.player }] : [];
+    });
+    this.race.applyRemoteState(race.phase, race.countdown, race.raceTime, racers);
+    this.interactions.applyRemoteStates(race.gates.map((gate) => ({ ...gate, center: new THREE.Vector3(...gate.center) })));
+    if (this.onlinePhase !== snapshot.phase) {
+      if (snapshot.phase === 'results') this.setPaused(false);
+      if (!this.paused) this.setFlow(snapshot.phase === 'results' ? 'results' : snapshot.phase === 'racing' ? 'racing' : 'countdown');
+      this.onlinePhase = snapshot.phase;
+    }
+    if (!wasFinished && this.race.getState(this.player.id).finished) {
+      this.audio.finish(this.race.getState(this.player.id).place);
+      this.hud.announce('FINISHED — WAITING FOR OTHER RACERS', 'info');
+    }
+    for (const entry of race.events) {
+      if (entry.id <= this.onlineEventSequence) continue;
+      this.onlineEventSequence = entry.id;
+      const event = entry.event;
+      if ('gateId' in event) {
+        const boat = this.onlineBoats.get(event.racerId);
+        if (boat) this.handleInteractionEvents([{ ...event, racerId: boat.id }]);
+      } else if (event.type === 'start') this.audio.startSignal();
+      else if ('racerId' in event) {
+        const boat = this.onlineBoats.get(event.racerId);
+        if (boat) this.handleRaceEvents([{ ...event, racerId: boat.id }]);
+      } else if (event.type === 'countdown') this.audio.countdown(event.tick);
+    }
+  }
+
+  private updateOnline(delta: number): void {
+    const snapshot = this.online.latest;
+    if (this.input.consumeRestart()) this.online.rematch();
+    if (this.input.consumePause() && snapshot?.phase === 'racing') this.setPaused(!this.paused);
+    if (this.input.consumeRecovery()) this.online.recover();
+    if (!snapshot?.race || !this.online.prediction) { this.publishDiagnostics(); return; }
+    const self = snapshot.players.find((player) => player.id === this.online.connection.playerId);
+    const canDrive = snapshot.phase === 'racing' && !this.paused && !self?.dnf &&
+      !this.race.getState(this.player.id).finished && this.online.connection.connected && !document.hidden;
+    this.input.setRaceInputEnabled(canDrive);
+    this.online.update(delta, canDrive ? this.input.snapshot() : NEUTRAL_INPUT);
+    this.elapsed = this.online.prediction.elapsed;
+    const visualElapsed = this.reducedMotion ? 0 : this.elapsed;
+    for (const [id, boat] of this.onlineBoats) {
+      const body = this.online.prediction.body(id);
+      if (body) boat.restoreState(body);
+      boat.group.visible = !snapshot.players.find((player) => player.id === id)?.dnf;
+    }
+    this.ocean.update(visualElapsed, this.player.group.position);
+    this.course.update(visualElapsed, this.camera.position);
+    this.updatePresentation(delta, visualElapsed);
+    this.updateHud();
+    this.publishDiagnostics();
+  }
+
   private configureTrack(trackId: TrackId): void {
     this.disposeTrackVisuals();
     const definition = getTrackDefinition(trackId);
@@ -331,6 +463,7 @@ export class Game {
   }
 
   private startSession(mode: RaceMode, trackId: TrackId): void {
+    if (this.online?.active) return;
     if (trackId !== this.config.trackId) this.configureTrack(trackId);
     this.configureRace(mode);
     this.saveStore.setSelection(mode, trackId);
@@ -339,6 +472,7 @@ export class Game {
   }
 
   private resetRace(updateFlow = true): void {
+    if (this.online?.active) { this.online.rematch(); return; }
     this.setPaused(false);
     this.elapsed = 0;
     this.lastBoosting = false;
@@ -581,6 +715,7 @@ export class Game {
   }
 
   private recoverPlayer(reason: 'explicit' | 'trapped' | 'severe'): void {
+    if (this.online?.active) { this.online.recover(); return; }
     if (this.isMenuFlow() || this.race.phase === 'finished') return;
     const state = this.race.getState(this.player.id);
     const lastIndex = (state.nextCheckpoint - 1 + this.track.checkpointPlanes.length) % this.track.checkpointPlanes.length;
@@ -616,6 +751,7 @@ export class Game {
     this.hud.setPaused(paused);
     void this.audio.setPaused(paused);
     if (paused) {
+      this.online?.prediction?.releaseInput();
       this.flow.transition('paused');
       this.input.setRaceInputEnabled(false);
     } else if (this.flow.snapshot.state === 'paused') {
@@ -655,6 +791,7 @@ export class Game {
     this.hud.onBack((from) => this.setFlow(from === 'track-select' ? 'mode-select' : 'title'));
     this.hud.onRecovery(() => this.recoverPlayer('explicit'));
     this.hud.onMenu(() => {
+      if (this.online.active) { this.online.leave(); return; }
       this.setPaused(false);
       this.setFlow('title');
     });
@@ -670,6 +807,7 @@ export class Game {
       this.hud.announce('TIME TRIAL RECORDS RESET', 'info');
     });
     this.hud.onOtherCourse(() => {
+      if (this.online.active) return;
       const other = this.config.trackId === 'sunset-circuit' ? 'storm-reef' : 'sunset-circuit';
       this.showCourseSelection(this.config.mode, other);
     });

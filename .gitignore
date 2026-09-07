@@ -4,4 +4,7 @@ test-results/
 artifacts/
 *.log
 .DS_Store
+.wrangler/
+worker-configuration.d.ts
+.dev.vars*
 

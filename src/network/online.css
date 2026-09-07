@@ -1,0 +1,95 @@
+.online-panel {
+  width: min(92vw, 480px);
+  max-height: 90dvh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 28px;
+  border: 2px solid #77d9df;
+  border-radius: 24px;
+  background: #10384a;
+  color: #fff4d8;
+  box-shadow: 0 24px 100px #041a2ac9;
+  font-family: inherit;
+}
+.online-panel::backdrop { background: #061e32b3; backdrop-filter: blur(7px); }
+.online-panel h2 { margin: 8px 0 20px; font-size: 32px; }
+.online-panel label { display: block; margin: 14px 0 6px; font-weight: 700; }
+.online-panel input, .online-panel select {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 12px;
+  border: 1px solid #77d9df;
+  border-radius: 10px;
+  background: #092735;
+  color: #fff;
+}
+.online-panel button { font: inherit; cursor: pointer; min-height: 44px; }
+.online-panel button:disabled { opacity: .45; cursor: default; }
+.online-panel button:focus-visible, .online-panel input:focus-visible, .online-panel select:focus-visible {
+  outline: 3px solid #ffcc32;
+  outline-offset: 3px;
+}
+#online-create, #online-join { width: 100%; margin-top: 12px; }
+#online-code { text-transform: uppercase; letter-spacing: .16em; }
+.online-divider { margin-top: 22px; color: #a0c4cc; text-align: center; font-size: 13px; }
+.online-code-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#online-room-code { display: block; font-size: 25px; letter-spacing: .12em; user-select: all; }
+.online-players { padding-left: 24px; margin: 16px 0; }
+.online-players li { padding: 10px 4px; border-bottom: 1px solid #78cbd52b; }
+.online-players li::marker { font-weight: 800; }
+.online-players li[data-slot="0"]::marker { color: #ffcc32; }
+.online-players li[data-slot="1"]::marker { color: #ff766d; }
+.online-players li[data-slot="2"]::marker { color: #60e2ff; }
+.online-players li[data-slot="3"]::marker { color: #c6a1ff; }
+.online-players li span { overflow-wrap: anywhere; }
+.online-players small { display: block; color: #a8d8df; margin-top: 2px; }
+.online-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+#online-status, #online-hint { font-size: 13px; line-height: 1.55; color: #bde3e6; }
+.online-race-panel {
+  position: fixed;
+  z-index: 15;
+  top: 110px;
+  right: 18px;
+  width: 205px;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid #a5e9df70;
+  border-radius: 16px;
+  background: #0b2f40d9;
+  color: #fff4d8;
+  font: 12px/1.4 system-ui, sans-serif;
+}
+.online-race-heading { display: flex; gap: 8px; align-items: center; justify-content: space-between; font-size: 10px; }
+.online-race-panel .online-players { margin: 6px 0; padding-left: 20px; }
+.online-race-panel .online-players li { padding: 5px 0; }
+.online-race-panel button { min-height: 36px; font-size: 12px; cursor: pointer; }
+.online-race-panel p { color: #bde3e6; margin: 8px 0; }
+.online-panel .online-presence-notice, .online-race-panel .online-presence-notice {
+  padding: 10px;
+  border-left: 3px solid #ffcc32;
+  border-radius: 5px;
+  background: #ffcc321a;
+  color: #fff4c2;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  max-height: 9em;
+  overflow-y: auto;
+}
+body.online-active #flow-overlay { visibility: hidden; }
+body.online-active #restart-button,
+body.online-active #pause-restart-button,
+body.online-active #results-other-course-button { display: none; }
+.online-mode-card { width: 100%; margin-top: 14px; min-height: 90px; }
+@media (max-width: 600px) {
+  .online-panel { padding: 20px; border-radius: 18px; }
+  .online-panel h2 { font-size: 26px; }
+  .online-race-panel { top: 116px; right: 8px; width: 155px; padding: 9px; font-size: 10px; }
+  .online-race-heading { flex-wrap: wrap; gap: 2px; }
+}
+@media (max-height: 500px) {
+  .online-race-panel { top: 78px; width: 165px; padding: 8px; }
+  .online-race-panel .online-players small { display: inline; padding-left: 5px; }
+  .online-race-panel p { margin: 4px 0; }
+}
