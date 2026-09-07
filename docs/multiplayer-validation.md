@@ -77,3 +77,17 @@ The same four departure/reconnection browser cases passed against the public
 Cloudflare deployment, including assertions that the notices are visible.
 Deployed application commit: `04c4bf2`; Worker version:
 `d8a7d9ce-ee1d-4743-805e-10bf3e390eb7`.
+
+## Start-menu entry regression
+
+The HTML now shows the title menu before the JavaScript bundle loads, with the
+start button disabled until initialization finishes and the race/touch HUD hidden.
+Opening or refreshing a page never automatically joins a saved room. Choosing
+Online Race prefills the previous room; joining remains an explicit action.
+
+Both regressions were reproduced before the fix. Delayed-script and saved-seat
+tests plus room/rejoin integration passed on desktop/mobile (11 passed, one
+existing duplicate-platform case skipped). The loaded title/mode/course screenshot
+test also passed without changing its baselines. Frontend build and Worker type
+checking passed. Full-race/performance and unrelated driving screenshot tests were
+not rerun for this startup-only change.

@@ -72,7 +72,7 @@ async function openOnline(page: Page, name: string) {
   await page.locator('#online-name').fill(name);
 }
 
-test('two browsers join by code, race, pause locally and refresh back into the same seat', async ({ page, browser, baseURL }) => {
+test('two browsers race, pause locally and explicitly rejoin the same seat after refresh', async ({ page, browser, baseURL }) => {
   const guest = await browser.newPage({ baseURL, viewport: { width: 960, height: 640 } });
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -114,6 +114,12 @@ test('two browsers join by code, race, pause locally and refresh back into the s
     await page.keyboard.press('KeyP');
     await page.screenshot({ path: `artifacts/online-race-${page.viewportSize()?.width}.png` });
     await page.reload();
+    await expect(page.locator('#title-screen')).toBeVisible();
+    await expect(page.locator('#online-panel')).toBeHidden();
+    await page.locator('#title-start-button').click();
+    await page.locator('#mode-online-button').click();
+    await expect(page.locator('#online-code')).toHaveValue(code);
+    await page.locator('#online-join').click();
     await page.waitForFunction((matchId) => window.__AQUA_ONLINE__?.connected && window.__AQUA_ONLINE__.state.matchId === matchId, started.matchId);
     const resumed = await page.evaluate(() => window.__AQUA_ONLINE__!.state);
     expect(resumed.players.find((player) => player.name === 'Yellow Captain')?.id).toBe(self.id);

@@ -44,19 +44,14 @@ export class OnlineController {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.prediction?.releaseInput();
     }, { signal: this.abort.signal });
-    const saved = this.connection.savedSeat();
-    if (saved) requestAnimationFrame(() => {
-      if (this.abort.signal.aborted) return;
-      this.open();
-      void this.connection.connect(saved.name, saved.code);
-    });
   }
 
   open(): void {
     this.active = true;
     document.body.classList.add('online-active');
     this.view.enter();
-    this.lobby.open();
+    const saved = this.connection.savedSeat();
+    this.lobby.open(saved ? { name: saved.name, code: saved.code } : undefined);
   }
 
   leave(): void {

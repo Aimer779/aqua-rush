@@ -12,6 +12,12 @@ results never update local Time Trial records.
 4. The host selects the course. Everyone presses **Ready**, then the host starts.
 5. All clients load the course before a shared countdown begins.
 
+Opening or refreshing the URL always shows the **Start racing** main menu. A saved
+room does not connect automatically. To restore a seat within its reconnect
+window, choose **Start racing → Online Race → Join room**; the previous nickname
+and room code are prefilled. Connection interruptions during an open online
+session still retry automatically.
+
 Keyboard and touch controls are shared with the single-player game. Pause opens
 your own menu; the race keeps running. R/Enter cannot restart a live online race.
 X requests recovery at the last legal sector without advancing progress or

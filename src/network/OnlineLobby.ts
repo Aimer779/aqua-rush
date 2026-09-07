@@ -86,7 +86,7 @@ export class OnlineLobby {
     this.element('#online-code').addEventListener('keydown', (event) => { if (event.key === 'Enter') connect(true); }, { signal: this.abort.signal });
   }
 
-  open(): void {
+  open(previousRoom?: { name: string; code: string }): void {
     this.snapshot = null;
     this.rosterSignature = '';
     this.connected = false;
@@ -95,7 +95,11 @@ export class OnlineLobby {
     this.element('#online-title').textContent = 'Online Race';
     this.element('#online-race-panel').hidden = true;
     this.clearPresenceNotice();
-    this.status('Create a room, or enter a friend’s 8-character code.', false);
+    this.element<HTMLInputElement>('#online-code').value = previousRoom?.code ?? '';
+    if (previousRoom) this.element<HTMLInputElement>('#online-name').value = previousRoom.name;
+    this.status(previousRoom
+      ? `Previous room ${previousRoom.code}. Choose Join room to reconnect, or create a new room.`
+      : 'Create a room, or enter a friend’s 8-character code.', false);
     this.dialog.showModal();
     this.element<HTMLInputElement>('#online-name').focus();
   }
