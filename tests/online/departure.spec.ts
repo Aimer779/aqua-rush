@@ -30,6 +30,7 @@ test('leaving a live race clearly notifies the remaining player and explains sol
     const matchId = await page.evaluate(() => window.__AQUA_ONLINE__!.state.matchId);
     await host.locator('#online-race-leave').click();
     await expect(page.locator('#online-race-notice')).toContainText('Leaving Captain left the race.');
+    await expect(page.locator('#online-race-notice')).toBeVisible();
     await expect(page.locator('#online-race-notice')).toContainText('You are now the host.');
     await expect(page.locator('#online-race-status')).toContainText('All opponents have left');
     await expect(page.locator('#online-standings li').filter({ hasText: 'Leaving Captain' })).toContainText('Left race (DNF)');
@@ -50,6 +51,7 @@ test('closing a player tab shows reconnecting first and a departure notice when 
     await startRace(host, page);
     await host.close();
     await expect(page.locator('#online-race-notice')).toContainText('Leaving Captain disconnected.');
+    await expect(page.locator('#online-race-notice')).toBeVisible();
     await expect(page.locator('#online-race-notice')).toContainText('15 seconds');
     await expect(page.locator('#online-standings li').filter({ hasText: 'Leaving Captain' })).toContainText('Reconnecting');
     await expect(page.locator('#online-race-notice')).toContainText('Leaving Captain did not reconnect', { timeout: 22_000 });
@@ -67,6 +69,7 @@ test('a lobby departure is announced in the dialog with the new host', async ({ 
     await enterRoom(host, page);
     await host.locator('#online-leave').click();
     await expect(page.locator('#online-room-notice')).toContainText('Leaving Captain left the room.');
+    await expect(page.locator('#online-room-notice')).toBeVisible();
     await expect(page.locator('#online-room-notice')).toContainText('You are now the host.');
     await expect(page.locator('#online-players li')).toHaveCount(1);
     await expect(page.locator('#online-start')).toBeDisabled();

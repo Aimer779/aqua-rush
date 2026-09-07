@@ -119,6 +119,7 @@ test('two browsers join by code, race, pause locally and refresh back into the s
     expect(resumed.players.find((player) => player.name === 'Yellow Captain')?.id).toBe(self.id);
     expect(resumed.race!.tick).toBeGreaterThan(pausedTick);
     await expect(guest.locator('#online-race-notice')).toContainText('Yellow Captain reconnected.');
+    await expect(guest.locator('#online-race-notice')).toBeVisible();
     expect(errors).toEqual([]);
     await page.locator('#online-race-leave').click();
     await expect(page.locator('#title-start-button')).toBeVisible();

@@ -72,3 +72,8 @@ the 15-second reconnect deadline, lobby exit and refresh reconnection. Final
 desktop/mobile notice layout checks also passed. Frontend build and the separate
 Worker TypeScript check passed; full-race physics/performance and unrelated
 screenshot baselines were not rerun for this presentation-only change.
+
+The same four departure/reconnection browser cases passed against the public
+Cloudflare deployment, including assertions that the notices are visible.
+Deployed application commit: `04c4bf2`; Worker version:
+`d8a7d9ce-ee1d-4743-805e-10bf3e390eb7`.
