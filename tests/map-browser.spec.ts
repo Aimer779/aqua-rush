@@ -16,7 +16,7 @@ test('all five course cards are reachable and the experimental shelf is explicit
     await expect(card.locator('svg polygon')).toHaveAttribute('points', /,/);
     if (EXPERIMENTAL.includes(id)) {
       await expect(card.locator('.course-meta i')).toBeVisible();
-      await expect(card).toContainText('Experimental');
+      await expect(card).toContainText(id === 'neon-leviathan' ? 'NEW' : 'Experimental');
     }
   }
   await page.locator('.course-card-grid').evaluate(node => { node.scrollTop = 0; });

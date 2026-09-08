@@ -1,6 +1,7 @@
+import { CurrentField } from '../src/game/CurrentField';
 import { expect, test } from '@playwright/test';
 import * as THREE from 'three';
-import { TRACK_IDS, getTrackDefinition, isTrackId } from '../src/game/ContentCatalog';
+import { TRACK_IDS, getTrackDefinition, isTrackId, isOnlineTrackId } from '../src/game/ContentCatalog';
 import { validateTrackDefinition } from '../src/game/TrackValidation';
 import { RaceTrack } from '../src/game/Track';
 import { RaceManager } from '../src/game/RaceManager';
@@ -19,7 +20,7 @@ test('content rejects invalid geometry and keeps concept maps out of both catalo
   expect(() => validateTrackDefinition({ ...base, checkpoints: [...base.checkpoints].reverse() })).toThrow();
   expect(() => validateTrackDefinition({ ...base, interactions: [base.interactions[0], base.interactions[0]] })).toThrow();
   for (const id of ['tidal-roulette', 'shipbreaker', 'skyfall-spillway', '__proto__']) expect(isTrackId(id)).toBe(false);
-  for (const id of TRACK_IDS.filter(id => getTrackDefinition(id).experimental)) {
+  for (const id of TRACK_IDS.filter(id => getTrackDefinition(id).experimental && !isOnlineTrackId(id))) {
     expect(parseClientMessage(JSON.stringify({ type: 'track', trackId: id }))).toBeNull();
   }
 });
@@ -98,6 +99,8 @@ for (const id of TRACK_IDS) {
     const collisions = new CollisionSystem();
     const frames = () => boats.map(b => ({ id: b.id, position: b.group.position, velocity: b.velocity }));
     const initial = new Map<string, number>();
+    const currents = new CurrentField(track);
+    boats.forEach(boat => { boat.currentField = currents; });
     boats.forEach((boat, i) => {
       const slot = track.definition.spawnGrid[i];
       boat.reset(track.getOffsetPoint(slot.progress, slot.lane), track.headingAt(slot.progress));

@@ -1,6 +1,6 @@
 # Aqua Rush V3 TrackDefinition
 
-`src/game/ContentCatalog.ts` is the authored content source. `TRACK_CATALOG` contains `sunset-circuit`, `storm-reef`, `neon-leviathan`, `caldera-throat`, and `storm-needle`. The last three are explicitly experimental local courses; `ONLINE_TRACK_IDS` permits only the first two. Unknown IDs are rejected.
+`src/game/ContentCatalog.ts` is the authored content source. `TRACK_CATALOG` contains `sunset-circuit`, `storm-reef`, `neon-leviathan`, `caldera-throat`, and `storm-needle`. `ONLINE_TRACK_IDS` permits Sunset Circuit, Storm Reef, and the revised Neon Leviathan. Caldera Throat and Storm Needle remain local experimental courses. Unknown IDs are rejected.
 
 ## Stable fields
 
@@ -43,4 +43,4 @@ Recovery moves the player to the last valid sector without changing lap, expecte
 
 ## Content extension rule
 
-The approved Map Pack expansion adds three P0 courses via `ExperimentalMapPack.ts`. Each definition is validated at registration. `landmarks.kind` selects cargo, volcano or turbine modules; positions use arc-length progress plus lateral offset. `LandmarkFootprints.ts` shares visible foundations with collision proxies. Advanced flow, moving-ship and flight designs remain unregistered until implemented and tested. See [implementation evidence](map-expansion-review.zh-CN.md).
+The approved Map Pack expansion adds three P0 courses via `ExperimentalMapPack.ts`. Each definition is validated at registration. `landmarks.kind` selects cargo, volcano or turbine modules; positions use arc-length progress plus lateral offset. `LandmarkFootprints.ts` shares visible foundations with collision proxies. Neon Leviathan revision 2 adds optional `routes` and bounded `currents` shared by boat control, server and prediction. The full Tidal Roulette, moving-ship and flight designs remain unregistered. See [implementation evidence](map-expansion-review.zh-CN.md).

@@ -1,3 +1,5 @@
+import { CourseFeatureVisuals } from '../assets/CourseFeatureVisuals';
+import { CurrentField } from './CurrentField';
 import * as THREE from 'three';
 import { createBoatModel, type BoatModel, type BoatProfile } from '../assets/BoatModel';
 import { CourseVisuals } from '../assets/CourseVisuals';
@@ -62,6 +64,7 @@ export class Game {
   private waves!: WaveSurface;
   private ocean!: OceanVisual;
   private course!: CourseVisuals;
+  private courseFeatures!: CourseFeatureVisuals;
   private guide!: GuideLineRenderer;
   private interactions!: InteractionSystem;
   private interactionVisuals!: InteractionGateRenderer;
@@ -421,6 +424,8 @@ export class Game {
     this.disposeTrackVisuals();
     const definition = getTrackDefinition(trackId);
     this.track = new RaceTrack(definition);
+    const currents = new CurrentField(this.track);
+    for (const boat of this.allBoats) boat.currentField = currents;
     this.waves = new WaveSurface(definition.waves.waves);
     this.ocean = new OceanVisual(this.waves, { nearSize: 280, nearSegments: 96, midSize: 680, midSegments: 32, farSize: 1200, farSegments: 12 });
     this.ocean.applyEnvironment({
@@ -433,6 +438,8 @@ export class Game {
     this.course = new CourseVisuals({ definition, centerline: this.track.points, courseWidth: this.track.halfWidth * 2, buoySpacing: definition.buoySpacing, materials: this.materials, seed: definition.seed });
     this.course.install(this.scene);
     this.course.setTrack(this.track);
+    this.courseFeatures = new CourseFeatureVisuals(this.track, this.waves);
+    this.scene.add(this.courseFeatures.root);
     this.guide = new GuideLineRenderer(this.track, this.waves, { aheadDistance: 160, behindDistance: 22, segments: 112, width: 1.65, surfaceOffset: 0.28 });
     this.interactions = new InteractionSystem(this.track);
     this.interactionVisuals = new InteractionGateRenderer(this.track);
@@ -444,6 +451,7 @@ export class Game {
 
   private disposeTrackVisuals(): void {
     this.course?.dispose();
+    this.courseFeatures?.dispose();
     this.ocean?.root.removeFromParent();
     this.ocean?.dispose();
     this.guide?.root.removeFromParent();
@@ -514,6 +522,7 @@ export class Game {
   }
 
   private updatePresentation(delta: number, visualElapsed: number): void {
+    this.courseFeatures.update(this.elapsed, this.reducedMotion);
     const playerState = this.race.getState(this.player.id);
     const projection = this.track.project(this.player.group.position);
     this.guide.root.visible = true;
@@ -680,8 +689,13 @@ export class Game {
               : this.player.ordinaryBoosting
                 ? 'BOOSTING!'
                 : 'FOLLOW THE FLOW';
+    const features = this.track.definition.routes;
+    const currentStrength = this.player.waterCurrent.length();
+    const option = features?.find(route => projection.progress >= route.anchors[0][0] - .045 && projection.progress <= route.anchors.at(-1)![0]);
+    this.hud.updateCourseFeature(features ? (currentStrength > 1 ? '借流中 · 修正船头，顺流出弯' : option ? (option.kind === 'safe' ? '船腹双门 / 外侧绕行' : option.label) : '霓虹港 / 船腹抢线 · 漩流弹射') : '',
+      currentStrength > 1 ? '水流正在改变你的速度与方向 · 外侧主航线可绕行' : option?.kind === 'safe' ? '金色穿船腹取双门 · 蓝色宽水面绕船' : option?.hint ?? '金色抢门 · 蓝色绕船 · 紫色借流');
     this.hud.updateRace({
-      speed: Math.max(0, this.player.speed),
+      speed: Math.max(0, currentStrength > 0 ? this.player.velocity.length() : this.player.speed),
       lap: state.displayLap,
       totalLaps: this.race.totalLaps,
       position: state.place,

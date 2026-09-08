@@ -1,6 +1,6 @@
 # Aqua Rush
 
-Aqua Rush is a cel-shaded arcade boat racing game built with Vite, Three.js, TypeScript, and ES modules. It has five local courses (including three experimental Map Pack courses) and two online courses: race three AI rivals in Quick Race, chase persistent per-course records in solo Time Trial, or race 2–4 friends in Online Race using a room code. All modes use three laps, directional checkpoint planes, open-water navigation, shared CPU/GPU wave truth, course interactions, and responsive desktop/mobile controls.
+Aqua Rush is a cel-shaded arcade boat racing game built with Vite, Three.js, TypeScript, and ES modules. It has five local courses (including three experimental Map Pack courses) and three online courses: race three AI rivals in Quick Race, chase persistent per-course records in solo Time Trial, or race 2–4 friends in Online Race using a room code. All modes use three laps, directional checkpoint planes, open-water navigation, shared CPU/GPU wave truth, course interactions, and responsive desktop/mobile controls.
 
 ## Run the game
 
@@ -71,7 +71,7 @@ Core loop:
 
 - **Sunset Circuit:** warm sunset water, green islands, a lighthouse, spectator boats, flags, broad sweepers, and forgiving optional lines.
 - **Storm Reef:** cold overcast water, stronger cross-swell, rocky channel, hairpin, broad sweeper, closing chicane, rock arch, warning lights, wreck silhouettes, and a risky reward line.
-- **Experimental local courses:** 霓虹巨兽港 (Neon Leviathan), 龙喉火山 (Caldera Throat), and 风暴针眼 (Storm Needle), with new layouts, procedural landmarks, and per-racer/per-lap rewards. See [map pack review and implementation](docs/map-expansion-review.zh-CN.md).
+- **Map Pack courses:** 霓虹巨兽港 (Neon Leviathan), 龙喉火山 (Caldera Throat), and 风暴针眼 (Storm Needle), with new layouts, procedural landmarks, and per-racer/per-lap rewards. Neon Leviathan now has a hull/bypass choice, a real current slingshot, and online support; see [harbor gameplay](docs/harbor-gameplay.zh-CN.md). See [map pack review and implementation](docs/map-expansion-review.zh-CN.md).
 - **Quick Race:** player plus KAI, MIRA, and NOX; three laps; placement results.
 - **Time Trial:** player only; three laps; current/best lap, best total, PB comparison, new-record results, and versioned local persistence.
 - **Online Race:** 2–4 human racers; room codes, shared countdown, authoritative results, short reconnect window, and return-to-lobby rematches. Pause affects only your controls; online races do not write Time Trial records.

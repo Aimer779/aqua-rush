@@ -1,3 +1,4 @@
+import type { CurrentField } from '../game/CurrentField';
 import * as THREE from 'three';
 import type { RaceIntent } from '../shared/RaceIntent';
 import type { WaveSurface } from '../systems/WaveSurface';
@@ -55,6 +56,8 @@ export type WaveHandlingState = {
 };
 
 export class ArcadeBoat {
+  currentField: CurrentField | null = null;
+  readonly waterCurrent = new THREE.Vector3();
   readonly previousPosition = new THREE.Vector3();
   private static readonly activeBoats = new Set<ArcadeBoat>();
 
@@ -121,6 +124,8 @@ export class ArcadeBoat {
 
   drive(delta: number, intent: RaceIntent, tuning: BoatTuning, enabled: boolean): void {
     this.previousPosition.copy(this.group.position);
+    if (enabled && this.currentField) this.currentField.sample(this.group.position, this.waterCurrent);
+    else this.waterCurrent.set(0, 0, 0);
     const throttle = enabled ? THREE.MathUtils.clamp(intent.throttle, -1, 1) : 0;
     const steer = enabled ? THREE.MathUtils.clamp(intent.steer, -1, 1) : 0;
     const boostHeld = enabled && intent.boost && throttle > 0.05;
@@ -206,7 +211,7 @@ export class ArcadeBoat {
 
     this.getForward(this.forward);
     this.planarRight.copy(this.forward).cross(WORLD_UP).normalize();
-    this.desiredVelocity.copy(this.forward).multiplyScalar(this.speed);
+    this.desiredVelocity.copy(this.forward).multiplyScalar(this.speed).add(this.waterCurrent);
     const highSpeedGrip = tuning.lateralGrip * (1 + postAccelerationSpeedRatio * 0.18);
     const grip = (this.drifting ? tuning.driftGrip : highSpeedGrip) * this.waveHandling.gripScale;
     const gripFactor = 1 - Math.exp(-grip * delta);
@@ -362,7 +367,7 @@ export class ArcadeBoat {
 
   syncSpeedFromVelocity(): void {
     this.getForward(this.forward);
-    this.speed = this.velocity.dot(this.forward);
+    this.speed = this.velocity.dot(this.forward) - this.waterCurrent.dot(this.forward);
   }
 
   reset(position: THREE.Vector3, heading: number): void {
@@ -371,6 +376,7 @@ export class ArcadeBoat {
     this.heading = heading;
     this.speed = 0;
     this.velocity.set(0, 0, 0);
+    this.waterCurrent.set(0, 0, 0);
     this.boost = 1;
     this.boosting = false;
     this.ordinaryBoosting = false;
@@ -413,6 +419,8 @@ export class ArcadeBoat {
 
   restoreState(state: BoatState): void {
     this.group.position.fromArray(state.position);
+    if (this.currentField) this.currentField.sample(this.group.position, this.waterCurrent);
+    else this.waterCurrent.set(0, 0, 0);
     this.velocity.fromArray(state.velocity);
     this.group.quaternion.fromArray(state.quaternion);
     this.visualRoot.rotation.set(...state.visualRotation);

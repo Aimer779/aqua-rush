@@ -1734,3 +1734,9 @@ button:focus-visible {
 }
 
 .course-card[data-experimental="true"] .course-meta i { display: inline; }
+
+#course-feature { position: absolute; top: 130px; left: 18px; max-width: 300px; background: #08172cda; border-left: 3px solid #d18aff; padding: 10px 14px; pointer-events: none; }
+#course-feature strong { display: block; font-size: 14px; color: #ffe17e; }
+#course-feature span { display: block; margin-top: 5px; font-size: 11px; color: #c6e9fa; line-height: 1.5; }
+@media (max-width: 700px) { #course-feature { top: 118px; left: 9px; max-width: 220px; padding: 7px 10px; } #course-feature strong { font-size: 11px; } #course-feature span { font-size: 9px; } }
+@media (max-height: 500px) { #course-feature { top: 94px; max-width: 210px; padding: 5px 8px; } #course-feature span { display: none; } }

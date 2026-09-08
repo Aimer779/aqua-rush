@@ -8,6 +8,8 @@ export function createMapLandmark(kind: NonNullable<LandmarkDefinition['kind']>)
   const dark = new THREE.MeshToonMaterial({ color: kind === 'cargo' ? 0x263452 : 0x303743 });
   const pale = new THREE.MeshToonMaterial({ color: 0xcedcdd });
   const signal = new THREE.MeshBasicMaterial({ color: kind === 'volcano' ? 0xff682e : 0x53ffe5, toneMapped: false });
+  const orange = new THREE.MeshToonMaterial({ color: 0xf68f3b });
+  const blue = new THREE.MeshToonMaterial({ color: 0x226b98 });
   const box = new THREE.BoxGeometry(1, 1, 1);
   const foundations = new Map<string, THREE.CylinderGeometry>();
   const addBox = (x: number, y: number, z: number, w: number, h: number, d: number, material: THREE.Material) => {
@@ -32,9 +34,22 @@ export function createMapLandmark(kind: NonNullable<LandmarkDefinition['kind']>)
   }
   if (kind === 'cargo') {
     addBox(0, 12, 0, 34, 4, 46, dark);
+    const prow = new THREE.Mesh(new THREE.ConeGeometry(17, 16, 4), blue);
+    prow.rotation.x = -Math.PI / 2;
+    prow.scale.z = .2;
+    prow.position.set(0, 12, -26);
+    root.add(prow);
+    for (const x of [-17.1, 17.1]) {
+      addBox(x, 12.5, 0, .25, 1.3, 44, orange);
+      addBox(x, 10.8, 0, .3, .3, 44, signal);
+    }
+    for (const z of [-15, -5, 5, 15]) {
+      addBox(-6.8, 5.4, z, .25, 2.4, 3.5, signal);
+      addBox(6.8, 5.4, z, .25, 2.4, 3.5, signal);
+    }
     for (const z of [-16, -5, 6, 17]) {
       addBox(0, 9.8, z, 27, .4, .7, signal);
-      for (const x of [-9, 0, 9]) addBox(x, 17, z, 8, 6, 9, pale);
+      for (const x of [-9, 0, 9]) addBox(x, 17, z, 8, 6, 9, x === -9 ? orange : x === 0 ? blue : pale);
     }
     addBox(0, 25, -18, 20, 8, 7, dark);
     addBox(0, 26, -21.6, 16, 2, .3, signal);
@@ -87,6 +102,6 @@ export function createMapLandmark(kind: NonNullable<LandmarkDefinition['kind']>)
   root.traverse(object => {
     if (object instanceof THREE.Mesh) { used.add(object.geometry); used.add(object.material as THREE.Material); }
   });
-  for (const resource of [box, dark, pale, signal]) if (!used.has(resource)) resource.dispose();
+  for (const resource of [box, dark, pale, signal, orange, blue]) if (!used.has(resource)) resource.dispose();
   return root;
 }

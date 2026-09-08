@@ -1,3 +1,4 @@
+import { strengthenHarbor } from './HarborCourse';
 // Layouts adapted from Aqua Rush Map Design Pack; P0 courses use existing boat physics.
 import type { TrackDefinition } from './ContentCatalog';
 export type ExperimentalTrackId = 'neon-leviathan' | 'caldera-throat' | 'storm-needle';
@@ -270,6 +271,7 @@ export function createExperimentalTracks(sunset: TrackDefinition, storm: TrackDe
     { water: '#326b79', deepWater: '#182d42', fog: '#a2807b', skyTop: '#352c48', skyMid: '#806376', horizon: '#e5a176', label: 'Volcanic coast' },
     { water: '#236c81', deepWater: '#12384b', fog: '#829da9', skyTop: '#273c58', skyMid: '#65899b', horizon: '#b1ced0', label: 'Needle passage' },
   ];
+  tracks[0] = strengthenHarbor(tracks[0]);
   return tracks.map((track, index) => {
     const environment = { ...track.environment, ...palettes[index], id: track.id };
     return { ...track, environment, environmentPreset: environment };

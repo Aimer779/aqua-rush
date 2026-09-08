@@ -173,6 +173,7 @@ export class Hud {
   private readonly courseBackButton = this.getElement<HTMLButtonElement>('#course-back-button');
   private readonly courseModeLabel = this.getElement('#course-mode-label');
   private readonly courseButtons = this.createCourseCards();
+  private readonly courseFeature = this.createCourseFeature();
 
   private restartHandler: (() => void) | null = null;
   private pauseHandler: (() => void) | null = null;
@@ -470,6 +471,22 @@ export class Hud {
     this.otherCourseHandler = null;
   }
 
+  private createCourseFeature(): HTMLElement {
+    const root = document.createElement('div');
+    root.id = 'course-feature';
+    root.hidden = true;
+    root.innerHTML = '<strong></strong><span></span>';
+    this.root.append(root);
+    return root;
+  }
+
+  updateCourseFeature(title: string, hint: string): void {
+    this.courseFeature.hidden = !title;
+    const heading = this.courseFeature.querySelector('strong')!, detail = this.courseFeature.querySelector('span')!;
+    if (heading.textContent !== title) heading.textContent = title;
+    if (detail.textContent !== hint) detail.textContent = hint;
+  }
+
   private createCourseCards(): Map<TrackId, HTMLButtonElement> {
     const grid = this.getElement('.course-card-grid');
     const template = document.createElement('button');
@@ -477,7 +494,7 @@ export class Hud {
     template.className = 'selection-card course-card';
     template.innerHTML = '<span class="course-art" aria-hidden="true"></span><span class="selection-copy"><span class="course-meta"><em></em><i></i></span><strong></strong><small></small><span class="course-record"><i>Best total</i><b></b></span></span>';
     const buttons = new Map<TrackId, HTMLButtonElement>();
-    for (const id of TRACK_IDS) {
+    for (const id of ['neon-leviathan', ...TRACK_IDS.filter(id => id !== 'neon-leviathan')] as TrackId[]) {
       const definition = getTrackDefinition(id);
       const button = template.cloneNode(true) as HTMLButtonElement;
       button.id = 'course-' + id + '-button';
@@ -505,7 +522,8 @@ export class Hud {
     button.querySelector('strong')!.textContent = course.displayName ?? course.name ?? definition.name;
     button.querySelector('.selection-copy > small')!.textContent = course.description ?? definition.description;
     button.querySelector('.course-meta em')!.textContent = course.difficulty ?? definition.difficulty;
-    button.querySelector('.course-meta i')!.textContent = definition.experimental ? 'Experimental · Local' : (course.environmentLabel ?? '');
+    button.querySelector('.course-meta i')!.textContent = definition.id === 'neon-leviathan' ? 'NEW · 路线抉择 / 借流' : definition.experimental ? 'Experimental · Local' : (course.environmentLabel ?? '');
+    button.querySelector('.course-record i')!.textContent = definition.rulesRevision ? 'Best total · V' + definition.rulesRevision : 'Best total';
     button.querySelector('.course-record b')!.textContent = formatOptionalTime(course.bestTotal);
   }
 

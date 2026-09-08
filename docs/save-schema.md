@@ -30,3 +30,7 @@ Times are positive finite seconds. A result replaces a stored time only when it 
 - Reset Records clears only Time Trial times; mute, reduced-motion, and last selection remain.
 
 Automated coverage is in `tests/save-store.spec.ts`.
+
+## Revised course records
+
+Neon Leviathan uses rulesRevision 2. Its former PB is retained in the optional `archivedTimeTrial["neon-leviathan@1"]` record and the new version starts with empty PBs. Other course records retain their existing schema. Reset Records clears current and archived times.

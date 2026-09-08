@@ -1,3 +1,5 @@
+import type { CurrentDefinition } from './CurrentField';
+import type { RouteOption } from './RouteOptions';
 import { validateTrackDefinition } from './TrackValidation';
 import { createExperimentalTracks, type ExperimentalTrackId } from './ExperimentalMapPack';
 import type { GerstnerWave } from '../systems/WaveSurface';
@@ -77,6 +79,9 @@ export type LandmarkDefinition = Readonly<{
 export type TrackDefinition = Readonly<{
   id: TrackId;
   experimental?: boolean;
+  rulesRevision?: number;
+  currents?: readonly CurrentDefinition[];
+  routes?: readonly RouteOption[];
   name: string;
   displayName: string;
   subtitle: string;
@@ -272,11 +277,11 @@ export const TRACK_CATALOG = Object.freeze(Object.fromEntries([
   ...Object.entries(BASE_TRACKS), ...experiments.map(track => [track.id, track]),
 ])) as Readonly<Record<TrackId, TrackDefinition>>;
 Object.values(TRACK_CATALOG).forEach(validateTrackDefinition);
-export const ONLINE_TRACK_IDS: readonly BaseTrackId[] = ['sunset-circuit', 'storm-reef'];
+export const ONLINE_TRACK_IDS: readonly TrackId[] = ['sunset-circuit', 'storm-reef', 'neon-leviathan'];
 export function isTrackId(value: unknown): value is TrackId {
   return typeof value === 'string' && Object.hasOwn(TRACK_CATALOG, value);
 }
-export function isOnlineTrackId(value: unknown): value is BaseTrackId {
+export function isOnlineTrackId(value: unknown): value is TrackId {
   return ONLINE_TRACK_IDS.some(id => id === value);
 }
 

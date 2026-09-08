@@ -1,3 +1,4 @@
+import { CurrentField } from '../game/CurrentField';
 import { ArcadeBoat, DEFAULT_PLAYER_TUNING } from '../entities/ArcadeBoat';
 import type { RaceIntent } from './RaceIntent';
 import { getTrackDefinition, type TrackId } from '../game/ContentCatalog';
@@ -35,8 +36,10 @@ export class OnlineSimulation {
     // No local player on the server: an individual finish must not end the match.
     this.race = new RaceManager(players.map((p) => ({ id: p.id, name: p.name, isPlayer: false })));
     const progress = new Map<string, number>();
+    const currents = new CurrentField(this.track);
     for (const player of players) {
       const boat = new ArcadeBoat(player.id, '#ffcc32', null);
+      boat.currentField = currents;
       const slot = definition.spawnGrid[player.slot];
       const position = this.track.getOffsetPoint(slot.progress, slot.lane);
       boat.reset(position, this.track.headingAt(slot.progress));

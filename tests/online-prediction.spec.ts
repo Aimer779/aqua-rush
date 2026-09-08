@@ -3,11 +3,18 @@ import { OnlinePrediction } from '../src/network/OnlinePrediction';
 import { OnlineSimulation, type AppliedInput } from '../src/shared/OnlineSimulation';
 import { SIMULATION_STEP, type ClientMessage, type RaceSnapshot, type RoomPlayer } from '../src/shared/OnlineProtocol';
 
-for (const rtt of [50, 100, 200]) {
-  test(`prediction remains bounded with ${rtt}ms RTT and controlled jitter`, () => {
+for (const trackId of ['storm-reef', 'neon-leviathan'] as const) for (const rtt of [50, 100, 200]) {
+  test(`${trackId}: prediction remains bounded with ${rtt}ms RTT and controlled jitter`, () => {
     const player: RoomPlayer = { id: 'captain', name: 'Captain', slot: 0, ready: true, connected: true, dnf: false };
-    const simulation = new OnlineSimulation('storm-reef', [player]);
+    const simulation = new OnlineSimulation(trackId, [player]);
     const boat = simulation.boats.get(player.id)!;
+    if (trackId === 'neon-leviathan') {
+      const field = boat.currentField!, zone = field.zones[0];
+      const position = zone.center.clone(); position.z += 22;
+      const velocity = field.sample(position).normalize().multiplyScalar(20);
+      boat.reset(position, Math.atan2(velocity.x, -velocity.z));
+      boat.speed = 20; boat.velocity.copy(velocity);
+    }
     simulation.race.startImmediately([{ id: boat.id, position: boat.group.position, velocity: boat.velocity }], simulation.track);
     let now = 0;
     let step = 0;
@@ -15,7 +22,7 @@ for (const rtt of [50, 100, 200]) {
     const inputs: Array<{ at: number; message: Extract<ClientMessage, { type: 'input' }> }> = [];
     const snapshots: Array<{ at: number; snapshot: RaceSnapshot }> = [];
     const applied = new Map<string, AppliedInput>();
-    const prediction = new OnlinePrediction(player.id, 'storm-reef', 'match', (message) => {
+    const prediction = new OnlinePrediction(player.id, trackId, 'match', (message) => {
       if (message.type === 'input') inputs.push({ at: step + halfTrip, message });
     }, () => now);
     prediction.receive(simulation.snapshot());

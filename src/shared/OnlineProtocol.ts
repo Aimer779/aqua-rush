@@ -4,7 +4,7 @@ import type { InteractionEvent, InteractionState } from '../game/InteractionSyst
 import type { RaceEvent, RacerRaceState, RacePhase } from '../game/RaceManager';
 import type { BoatState } from './BoatState';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const SIMULATION_STEP = 1 / 60;
 export const SNAPSHOT_INTERVAL_MS = 50;
 export const MAX_PLAYERS = 4;

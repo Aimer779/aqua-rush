@@ -1,3 +1,5 @@
+import { CurrentField } from '../game/CurrentField';
+import { RaceTrack } from '../game/Track';
 import { Vector3 } from 'three';
 import { SnapshotInterpolation } from './SnapshotInterpolation';
 import { ArcadeBoat, DEFAULT_PLAYER_TUNING } from '../entities/ArcadeBoat';
@@ -26,6 +28,7 @@ export class OnlinePrediction {
   constructor(private readonly playerId: string, trackId: TrackId, private readonly matchId: string,
     private readonly send: (message: ClientMessage) => void, private readonly now = () => performance.now()) {
     this.waves = new WaveSurface(getTrackDefinition(trackId).waves.waves);
+    this.boat.currentField = new CurrentField(new RaceTrack(getTrackDefinition(trackId)));
   }
 
   receive(snapshot: RaceSnapshot, now = this.now()): void {

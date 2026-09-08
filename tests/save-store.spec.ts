@@ -1,4 +1,4 @@
-import { TRACK_IDS } from '../src/game/ContentCatalog';
+import { TRACK_IDS, getTrackDefinition } from '../src/game/ContentCatalog';
 import { expect, test } from '@playwright/test';
 import {
   SAVE_SCHEMA_VERSION,
@@ -49,7 +49,7 @@ const defaultData = (): SaveData => ({
   version: SAVE_SCHEMA_VERSION,
   settings: { muted: false, reducedMotion: false },
   lastSelection: { mode: 'quick-race', trackId: 'sunset-circuit' },
-  timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, { bestLap: null, bestTotal: null }])) as SaveData['timeTrial'],
+  timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, { bestLap: null, bestTotal: null, ...(getTrackDefinition(id).rulesRevision ? { rulesRevision: getTrackDefinition(id).rulesRevision } : {}) }])) as SaveData['timeTrial'],
 });
 
 let originalWindowDescriptor: PropertyDescriptor | undefined;
@@ -161,14 +161,14 @@ test.describe('V3 versioned SaveStore contract', () => {
     const store = new SaveStore();
     const data = store.load().data;
     expect(data.timeTrial['sunset-circuit']).toEqual({ bestLap: 30, bestTotal: 96 });
-    expect(data.timeTrial['neon-leviathan']).toEqual({ bestLap: null, bestTotal: null });
+    expect(data.timeTrial['neon-leviathan']).toMatchObject({ bestLap: null, bestTotal: null });
     store.setSelection('time-trial', 'neon-leviathan');
     store.recordTimeTrial('neon-leviathan', 34, 106);
     store.recordTimeTrial('neon-leviathan', NaN, Infinity);
     const reloaded = new SaveStore().load().data;
     expect(reloaded.lastSelection.trackId).toBe('neon-leviathan');
     expect(reloaded.settings.muted).toBe(true);
-    expect(reloaded.timeTrial['neon-leviathan']).toEqual({ bestLap: 34, bestTotal: 106 });
+    expect(reloaded.timeTrial['neon-leviathan']).toMatchObject({ bestLap: 34, bestTotal: 106 });
     expect(reloaded.timeTrial['storm-reef']).toEqual({ bestLap: 42, bestTotal: 130 });
   });
 
@@ -218,7 +218,23 @@ test.describe('V3 versioned SaveStore contract', () => {
       version: SAVE_SCHEMA_VERSION,
       settings: { muted: true, reducedMotion: true },
       lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
-      timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, { bestLap: null, bestTotal: null }])) as SaveData['timeTrial'],
+      timeTrial: defaultData().timeTrial,
     });
+  });
+
+  test('old harbor records are archived once and cannot compete with revised course times', () => {
+    const storage = new MemoryStorage();
+    const old = defaultData();
+    old.timeTrial['neon-leviathan'] = { bestLap: 32, bestTotal: 100 };
+    storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(old));
+    installWindow(storage);
+    const store = new SaveStore();
+    const loaded = store.load();
+    expect(loaded.data.timeTrial['neon-leviathan']).toEqual({ bestLap: null, bestTotal: null, rulesRevision: 2 });
+    expect(loaded.data.archivedTimeTrial?.['neon-leviathan@1']).toMatchObject({ bestLap: 32, bestTotal: 100 });
+    store.recordTimeTrial('neon-leviathan', 40, 130);
+    const reload = new SaveStore().load();
+    expect(reload.data.timeTrial['neon-leviathan'].bestTotal).toBe(130);
+    expect(reload.data.archivedTimeTrial?.['neon-leviathan@1'].bestTotal).toBe(100);
   });
 });
