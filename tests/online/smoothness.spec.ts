@@ -46,7 +46,7 @@ for (const opponents of [1, 3]) test(`${opponents} opponents render smoothly wit
         if (message.phase === 'loading') peer.send({ type: 'loaded', matchId: message.matchId });
         const racer = message.race?.racers.find((entry) => entry.id === welcome.playerId);
         if (message.phase === 'racing' && racer) peer.send({ type: 'input', matchId: message.matchId,
-          seq: ++sequence, ...pilot(track, racer, slot) });
+          seq: ++sequence, ...pilot(track, racer, slot, message.race!.elapsed) });
       });
       peer.send({ type: 'ready', ready: true });
     }

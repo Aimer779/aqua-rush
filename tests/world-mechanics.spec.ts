@@ -47,26 +47,29 @@ for (const id of TRACK_IDS) test(`${id}: ramp launches, air state replays and la
   } finally { boat.dispose(); restored.dispose(); }
 });
 
-test('moving lock phases preserve a passable center and block their visible caissons', () => {
+test('a warned crossing blocks the racing line while the marked outside lane remains passable', () => {
   const track = new RaceTrack(getTrackDefinition('nightfall'));
   const boat = new ArcadeBoat('test', '#ffffff', null);
   const collisions = new CollisionSystem();
   try {
     for (let time = 0; time < 22; time += .25) {
-      for (const gate of track.definition.shutters!) {
-        const center = track.getPointAt(gate.progress);
+      for (const gate of track.definition.crossings!) {
+        const center = track.getOffsetPoint(gate.progress, 17);
         boat.reset(center, track.headingAt(gate.progress));
         collisions.resolve([boat], track, time);
         expect(boat.group.position.x).toBeCloseTo(center.x, 8);
         expect(boat.group.position.z).toBeCloseTo(center.z, 8);
       }
     }
-    const block = track.mechanics.shutters(0)[0];
+    const spec = track.definition.crossings![0], crossingTime = spec.period * .625 - spec.offset;
+    expect(track.mechanics.crossing(spec, spec.period * .3 - spec.offset).phase).toBe('warning');
+    const block = track.mechanics.crossing(spec, crossingTime).block;
+    expect(block.center.distanceTo(track.getPointAt(spec.progress))).toBeLessThan(.001);
     boat.reset(block.center, track.headingAt(block.progress));
-    collisions.resolve([boat], track, 0);
+    collisions.resolve([boat], track, crossingTime);
     expect(boat.group.position.distanceTo(block.center)).toBeGreaterThan(boat.radius);
     boat.reset(block.center.clone().setY(block.height + 2), 0);
-    collisions.resolve([boat], track, 0);
+    collisions.resolve([boat], track, crossingTime);
     expect(boat.group.position.x).toBeCloseTo(block.center.x, 8);
     expect(boat.group.position.z).toBeCloseTo(block.center.z, 8);
   } finally { boat.dispose(); }

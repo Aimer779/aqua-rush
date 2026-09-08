@@ -17,6 +17,9 @@ export type RaceHudState = {
   drifting?: boolean;
   /** Normalized 0..1 drift reward charge. */
   driftCharge?: number;
+  skillChain?: number;
+  draftCharge?: number;
+  draftReady?: boolean;
   status?: string;
 };
 
@@ -243,13 +246,15 @@ export class Hud {
     const steering = Math.max(-1, Math.min(1, state.steering ?? 0));
     const driftCharge = Math.max(0, Math.min(1, state.driftCharge ?? 0));
     this.turnFeedback.style.setProperty('--steer', String(steering));
-    this.driftChargeFill.style.setProperty('--drift-charge', String(driftCharge));
+    this.driftChargeFill.style.setProperty('--drift-charge', String(state.drifting ? driftCharge : Math.min(1, (state.draftCharge ?? 0) / 1.25)));
+    this.getElement('#skill-chain-label').textContent = state.skillChain ? '×' + state.skillChain : '';
+    this.turnFeedback.classList.toggle('is-draft-ready', Boolean(state.draftReady));
     this.turnFeedback.classList.toggle('is-turning-left', steering < -0.12);
     this.turnFeedback.classList.toggle('is-turning-right', steering > 0.12);
     this.turnFeedback.classList.toggle('is-drifting', Boolean(state.drifting));
     this.turnFeedbackLabel.textContent = state.drifting
-      ? driftCharge > 0.82 ? 'RELEASE!' : 'DRIFT'
-      : boost < 0.2 ? 'RECHARGE' : 'GRIP';
+      ? driftCharge >= .7 ? 'III · RELEASE!' : driftCharge >= .4 ? 'II · RELEASE' : driftCharge >= .16 ? 'I · RELEASE' : 'DRIFT'
+      : state.draftReady ? 'PULL OUT!' : (state.draftCharge ?? 0) > 0 ? 'SLIPSTREAM' : boost < 0.2 ? 'DRIFT TO CHARGE' : 'GRIP';
 
     if (position !== this.lastPosition) {
       this.positionValue.animate(
@@ -557,8 +562,8 @@ export class Hud {
     this.getElement('#course-subtitle').textContent = definition.subtitle;
     this.getElement('#course-display-name').textContent = definition.name;
     this.getElement('#course-description').textContent = definition.description;
-    this.getElement('#course-mechanics').textContent = definition.id === 'nightfall' ? '读灯穿闸   /   楼间追逐   /   地铁飞跃'
-      : definition.id === 'sunken-temple' ? '巨石拱门   /   旋流借力   /   遗迹飞跃' : '飞越堤墙   /   外侧绕行   /   落水增压';
+    this.getElement('#course-mechanics').textContent = definition.id === 'nightfall' ? '预判横渡   /   尾流超车   /   右侧绕行'
+      : definition.id === 'sunken-temple' ? '借流出弯   /   漂移连段   /   遗迹飞跃' : '漂移蓄力   /   飞越堤墙   /   精准落水';
     for (const [id, button] of this.courseButtons) {
       const selected = id === trackId;
       button.classList.toggle('is-selected', selected);

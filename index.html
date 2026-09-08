@@ -22,7 +22,7 @@
           </div>
           <p>越过堤墙。潜入夜色。<br>把海面，开成你的路。</p>
           <button id="title-start-button" class="menu-primary flow-primary" type="button" disabled>Start racing</button>
-          <small>WASD 转向加速 · SPACE 漂移 / 增压 · 支持触控</small>
+          <small>WASD 驾驶 · 弯中按住 SPACE 漂移，出弯松开 · 直线按 SPACE 增压</small>
         </section>
 
         <section id="mode-select-screen" class="flow-screen mode-select-screen" role="dialog" aria-modal="true" aria-labelledby="mode-select-title" hidden>
@@ -112,7 +112,7 @@
         </div>
 
         <div class="boost-cluster" aria-label="Boost status">
-          <div class="boost-heading"><span>Boost</span><b id="boost-label">Ready</b></div>
+          <div class="boost-heading"><span>Boost <i id="skill-chain-label" aria-label="技巧连段"></i></span><b id="boost-label">Ready</b></div>
           <div class="boost-meter"><i id="boost-fill"></i><span></span><span></span><span></span></div>
           <small>SPACE</small>
         </div>

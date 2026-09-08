@@ -105,7 +105,7 @@ export class RaceTrack {
   }
 
   /** A point on the advisory water route, with the marked bypass available after a missed jump. */
-  getDrivingTarget(position: THREE.Vector3, nextCheckpoint: number, speed: number, target = new THREE.Vector3()): THREE.Vector3 {
+  getDrivingTarget(position: THREE.Vector3, nextCheckpoint: number, speed: number, target = new THREE.Vector3(), elapsed = 0): THREE.Vector3 {
     const projection = this.project(position);
     this.getPointAt(projection.progress + (15 + Math.min(10, Math.abs(speed) * .35)) / this.length, target);
     const checkpoint = this.getCheckpoint(nextCheckpoint);
@@ -120,6 +120,7 @@ export class RaceTrack {
         target.copy(block.center).addScaledVector(block.right, block.width / 2 + 4).addScaledVector(block.forward, -4);
       }
     }
+    this.mechanics.avoidCrossing(position, speed, elapsed, target);
     return target;
   }
 

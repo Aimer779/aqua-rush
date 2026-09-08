@@ -1,5 +1,6 @@
 import { CourseFeatureVisuals } from '../assets/CourseFeatureVisuals';
 import { CurrentField } from './CurrentField';
+import { updateDrafting } from '../shared/RaceDrafting';
 import * as THREE from 'three';
 import { createBoatModel, type BoatModel, type BoatProfile } from '../assets/BoatModel';
 import { CourseVisuals } from '../assets/CourseVisuals';
@@ -98,6 +99,7 @@ export class Game {
   private reducedMotion = false;
   private lastBoosting = false;
   private lastMiniBoosting = false;
+  private lastSkillSerial = 0;
   private readonly lastLandingByBoat = new Map<string, number>();
   private collisionCooldown = 0;
   private collisionTotal = 0;
@@ -299,6 +301,9 @@ export class Game {
     }
 
     this.collisionFrame = canRace ? this.collision.resolve(this.activeBoats, this.track, this.elapsed) : { count: 0, strongest: 0 };
+    const draftRivals = this.activeBoats.filter(boat => !this.race.getState(boat.id).finished)
+      .map(boat => ({ id: boat.id, position: boat.group.position, velocity: boat.velocity }));
+    for (const boat of this.activeBoats) updateDrafting(delta, boat, draftRivals, canRace && !this.race.getState(boat.id).finished);
     this.handleCollisions();
     this.interactions.update(delta, this.activeBoats.filter(boat => !this.race.getState(boat.id).finished), canRace, id => this.race.getState(id).lap);
     this.handleInteractionEvents(this.interactions.consumeEvents());
@@ -426,7 +431,7 @@ export class Game {
       boat.group.visible = !snapshot.players.find((player) => player.id === id)?.dnf;
     }
     this.ocean.update(this.elapsed, this.player.group.position);
-    this.course.update(visualElapsed, this.camera.position);
+    this.course.update(visualElapsed, this.camera.position, this.elapsed);
     this.updatePresentation(delta, visualElapsed);
     this.updateHud();
     this.publishDiagnostics();
@@ -683,6 +688,13 @@ export class Game {
 
   private updateHud(): void {
     const state = this.race.getState(this.player.id);
+    if (this.player.skillSerial !== this.lastSkillSerial) {
+      this.lastSkillSerial = this.player.skillSerial;
+      if (this.player.skillSerial > 0) {
+        const skillName = ['', '漂移释放', '精准落水', '抢门成功', '尾流超车'][this.player.skillKind] ?? '技巧';
+        this.hud.announce(skillName + ' / 连段 ×' + this.player.skillChain, 'boost');
+      }
+    }
     const countdown = this.race.phase === 'countdown' && this.flow.snapshot.state === 'countdown' ? Math.ceil(this.race.countdown) : null;
     if (countdown !== this.lastCountdownPresentation) {
       this.hud.setCountdown(countdown);
@@ -695,8 +707,11 @@ export class Game {
         ? 'OPEN WATER — GUIDE BEACON AHEAD · X TO RECOVER'
         : this.race.phase === 'finished'
           ? 'SESSION COMPLETE'
+          : this.player.draftReady ? '尾流蓄满 · 拉出超车！'
           : this.player.drifting
-            ? this.player.driftCharge > 0.82 ? 'DRIFT CHARGED — RELEASE!' : 'HOLD THE DRIFT LINE'
+            ? this.player.driftCharge >= .4 ? '漂移蓄满 · 松开增压键！' : '按住增压键 · 保持漂移'
+            : this.player.skillTime > 8
+              ? (['', '漂移', '精准落水', '抢门', '尾流超车'][this.player.skillKind] ?? '技巧') + '连段 ×' + this.player.skillChain
             : this.player.miniBoosting
               ? 'DRIFT BURST!'
               : this.player.ordinaryBoosting
@@ -704,14 +719,19 @@ export class Game {
                 : 'FOLLOW THE FLOW';
     const currentStrength = this.player.waterCurrent.length();
     const nextRamp = this.track.mechanics.ramps.find(ramp => this.track.forwardDistance(projection.progress, ramp.progress) < .075);
-    const nextLock = this.track.definition.shutters?.find(lock => this.track.forwardDistance(projection.progress, lock.progress) < .07);
+    const nextLock = this.track.definition.crossings?.find(lock => this.track.forwardDistance(projection.progress, lock.progress) < .09);
+    const crossing = nextLock ? this.track.mechanics.crossing(nextLock, this.elapsed) : null;
+    const crossingTitle = crossing?.phase === 'warning' ? '横渡预警 / ' + crossing.remaining.toFixed(1) + ' s'
+      : crossing?.phase === 'crossing' ? '作业船横渡 / 右侧绕行' : '中线开放 / 留意黄灯';
     const title = this.player.flightActive ? 'AIRTIME / ' + this.player.flightTime.toFixed(1) + ' s'
       : this.player.flightCooldown > .3 ? '落水接力 / BOOST'
       : currentStrength > 1 ? '借流中 / 顺着水纹出弯'
       : nextRamp ? '前方跳台 / 稳住船头'
-      : nextLock ? '前方闸门 / 看灯，选线' : '';
+      : nextLock ? crossingTitle : this.player.draftReady ? '尾流蓄满 / 拉出超车'
+      : this.player.drafting ? '尾流蓄力 / ' + Math.floor(this.player.draftCharge / 1.25 * 100) + '%' : '';
     this.hud.updateCourseFeature(title, this.player.flightActive ? '空中可微调方向，准备落水'
-      : currentStrength > 1 ? '提前反打修正，外侧可绕行' : nextRamp ? '保持速度飞越堤墙；低速走外侧' : '绿色窗口更宽，橙色窗口收窄');
+      : currentStrength > 1 ? '提前反打修正，外侧可绕行' : nextRamp ? '保持速度飞跃；落水前摆正船头'
+      : nextLock ? '估算到达时间，右侧青色水道始终开放' : '跟住同向对手，蓄满后侧移获得增压');
     const mapTarget = this.track.getCheckpoint(state.nextCheckpoint).center;
     this.hud.updateMinimap(this.player.group.position.x, this.player.group.position.z, mapTarget.x, mapTarget.z);
     this.hud.updateRace({
@@ -725,6 +745,7 @@ export class Game {
       steering: this.player.steering,
       drifting: this.player.drifting,
       driftCharge: this.player.driftCharge,
+      skillChain: this.player.skillChain, draftCharge: this.player.draftCharge, draftReady: this.player.draftReady,
       status,
     });
     this.hud.updateTimeTrial(this.config.mode === 'time-trial' ? this.timeTrialHudState() : null);
@@ -941,7 +962,7 @@ export class Game {
     const targetCheckpoint = this.track.getCheckpoint(playerState.nextCheckpoint);
     this.nextCheckpointPosition.copy(targetCheckpoint.center);
     // Look ahead along the visible guide: aiming directly at a distant sector can cut through a bank.
-    this.track.getDrivingTarget(this.player.group.position, playerState.nextCheckpoint, this.player.speed, this.playerLookAheadPosition);
+    this.track.getDrivingTarget(this.player.group.position, playerState.nextCheckpoint, this.player.speed, this.playerLookAheadPosition, this.elapsed);
     const racers = this.race.getAllStates().map((state) => {
       const boat = this.activeBoats.find((candidate) => candidate.id === state.id);
       if (!boat) throw new Error(`Missing boat for racer ${state.id}`);
@@ -964,6 +985,7 @@ export class Game {
         contact: boat.contact,
         airborne: boat.airborne,
         flightActive: boat.flightActive, flightTime: boat.flightTime, jumps: boat.jumps,
+        skillChain: boat.skillChain, skillKind: boat.skillKind, skillSerial: boat.skillSerial, draftCharge: boat.draftCharge, draftReady: boat.draftReady,
         landingIntensity: boat.landingIntensity,
         steering: boat.steering,
         throttle: boat.throttle,

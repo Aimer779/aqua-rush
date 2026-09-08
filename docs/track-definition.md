@@ -11,7 +11,7 @@
 | `halfWidth`, `width`, `buoySpacing` | Advisory guide/marker placement; never a solid race corridor |
 | `lapCount`, `spawnGrid` | Session length and the four authored start slots |
 | `markerPreset` | Course-specific standard/tall/hazard marker language |
-| `blocks`, `ramps`, `shutters` | Shared oriented architecture, physical launch surfaces and deterministic moving locks |
+| `blocks`, `ramps`, `crossings` | Shared oriented architecture, physical launch surfaces and warned work-barge crossings |
 | `currents`, `routes` | Optional bounded current fields and readable alternate lines |
 | `timeTrialTargets` | Gold/silver/bronze authored total-time references |
 | `controlPoints` | Closed Catmull-Rom route used by AI, guide, recovery, and authored placements |
@@ -44,4 +44,4 @@ Recovery moves the player to the last valid sector without changing lap, expecte
 
 ## Content extension rule
 
-`WorldMechanics.ts` resolves authored progress/lateral positions for physics and visuals. Ordinary banks are kept outside both the navigable center line and the ramp landing fan. Deliberate low walls opt into the route and have a marked bypass. Launch surfaces carry boats into a gravity-driven flight and landing grants one short boost. Lock phases use simulation time, including server prediction/replay; reduced motion changes presentation only.
+`WorldMechanics.ts` resolves authored progress/lateral positions for physics and visuals. Ordinary banks clear the center line, marked bypass curves and ramp landing fans. Deliberate low walls have a marked bypass. Clean, aligned landings give a stronger burst and continue a skill chain; misaligned landings lose momentum. Barge crossings divide their period into open, warning, crossing and clear phases, using simulation time on the server and prediction client. The barge traverses the center after warning while the right bypass remains open. Reduced motion changes presentation only.

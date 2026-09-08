@@ -18,7 +18,7 @@ export class CollisionSystem {
 
   resolve(boats: ArcadeBoat[], track: RaceTrack, elapsed = 0): CollisionResult {
     let count = 0;
-    const blocks = [...track.mechanics.blocks, ...track.mechanics.shutters(elapsed)];
+    const blocks = [...track.mechanics.blocks, ...track.mechanics.crossings(elapsed)];
     let strongest = 0;
     const currentPairContacts = new Set<string>();
     const currentTrackContacts = new Set<string>();

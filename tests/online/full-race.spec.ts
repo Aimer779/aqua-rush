@@ -37,7 +37,7 @@ for (const trackId of ['breakwater', 'nightfall', 'sunken-temple'] as const) {
           }
           const racer = message.race?.racers.find((entry) => entry.id === welcome.playerId);
           if (message.phase === 'racing' && racer && !racer.race.finished) {
-            peer.send({ type: 'input', matchId, seq: ++sequence, ...pilot(track, racer, slot) });
+            peer.send({ type: 'input', matchId, seq: ++sequence, ...pilot(track, racer, slot, message.race!.elapsed) });
           }
           if (message.phase === 'results' && slot === 0) finishedResolve(message);
         });

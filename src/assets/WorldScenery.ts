@@ -7,6 +7,8 @@ export class WorldScenery {
   readonly root = new THREE.Group();
   private readonly locks: THREE.InstancedMesh;
   private readonly lockLights: THREE.InstancedMesh;
+  private readonly cabins: THREE.InstancedMesh;
+  private readonly warningLights: THREE.InstancedMesh;
   private readonly matrix = new THREE.Matrix4();
   private readonly quaternion = new THREE.Quaternion();
   private readonly up = new THREE.Vector3(0, 1, 0);
@@ -84,26 +86,41 @@ export class WorldScenery {
         bridge.add(strip);
       }
     }
-    const count = (track.definition.shutters?.length ?? 0) * 2;
+    const count = track.definition.crossings?.length ?? 0;
     this.locks = new THREE.InstancedMesh(box, stone, count);
     this.lockLights = new THREE.InstancedMesh(box, glow, count);
-    this.root.add(this.locks, this.lockLights);
+    this.cabins = new THREE.InstancedMesh(box, dark, count);
+    this.warningLights = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1), glow, count * 2);
+    this.root.add(this.locks, this.lockLights, this.cabins, this.warningLights);
     this.update(0);
   }
 
   update(elapsed: number): void {
-    this.track.mechanics.shutters(elapsed).forEach((block, i) => {
+    (this.track.definition.crossings ?? []).forEach((spec, i) => {
+      const state = this.track.mechanics.crossing(spec, elapsed), block = state.block;
       const heading = -Math.atan2(block.forward.x, -block.forward.z);
-      this.transform(block.center, heading, block.width, block.height, block.length);
+      this.transform(block.center, heading, block.width, 2.2, block.length);
       this.locks.setMatrixAt(i, this.matrix);
-      this.point.copy(block.center).setY(block.height + .3);
-      this.transform(this.point, heading, block.width + .2, .55, block.length + .2, false);
+      this.point.copy(block.center).setY(2.3);
+      this.transform(this.point, heading, block.width + .2, .3, block.length + .2, false);
       this.lockLights.setMatrixAt(i, this.matrix);
-      this.lockLights.setColorAt(i, new THREE.Color(Math.abs(block.lateralOffset) < 9 ? '#ff8b6b' : '#5fffd8'));
+      const color = new THREE.Color(state.phase === 'crossing' ? '#ff5e57' : state.phase === 'warning' ? '#ffd85a' : '#39e1e5');
+      this.lockLights.setColorAt(i, color);
+      this.point.copy(block.center).addScaledVector(block.right, -3).setY(2.8);
+      this.transform(this.point, heading, 4, 1.4, 5, false);
+      this.cabins.setMatrixAt(i, this.matrix);
+      for (const [index, side] of [-1, 1].entries()) {
+        this.point.copy(this.track.getOffsetPoint(spec.progress - .025, side * 17)).setY(5);
+        this.transform(this.point, heading, .8, 1.5, .8, false);
+        this.warningLights.setMatrixAt(i * 2 + index, this.matrix);
+        this.warningLights.setColorAt(i * 2 + index, color);
+      }
     });
     this.locks.instanceMatrix.needsUpdate = true;
     this.lockLights.instanceMatrix.needsUpdate = true;
     if (this.lockLights.instanceColor) this.lockLights.instanceColor.needsUpdate = true;
+    this.cabins.instanceMatrix.needsUpdate = this.warningLights.instanceMatrix.needsUpdate = true;
+    if (this.warningLights.instanceColor) this.warningLights.instanceColor.needsUpdate = true;
   }
 
   dispose(): void {

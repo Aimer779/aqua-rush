@@ -1,4 +1,5 @@
 import { CurrentField } from '../game/CurrentField';
+import { updateDrafting } from './RaceDrafting';
 import { ArcadeBoat, DEFAULT_PLAYER_TUNING } from '../entities/ArcadeBoat';
 import type { RaceIntent } from './RaceIntent';
 import { getTrackDefinition, type TrackId } from '../game/ContentCatalog';
@@ -67,6 +68,9 @@ export class OnlineSimulation {
       active.push(boat);
     }
     if (racing) this.collisions.resolve(active, this.track, this.elapsed);
+    const rivals = active.filter(boat => !this.race.getState(boat.id).finished)
+      .map(boat => ({ id: boat.id, position: boat.group.position, velocity: boat.velocity }));
+    for (const boat of active) updateDrafting(SIMULATION_STEP, boat, rivals, racing && !this.race.getState(boat.id).finished);
     this.interactions.update(SIMULATION_STEP, active.filter((boat) => !this.race.getState(boat.id).finished), racing, id => this.race.getState(id).lap);
     this.race.update(SIMULATION_STEP, active.map((boat) => ({
       id: boat.id, position: boat.group.position, velocity: boat.velocity,
@@ -118,6 +122,7 @@ export class OnlineSimulation {
       racers: states.map((race, index) => ({
         id: race.id, ack: this.acknowledgements.get(race.id) ?? 0,
         recovery: this.recoveries.get(race.id) ?? 0,
+        dnf: this.dnf.has(race.id),
         body: this.boats.get(race.id)!.captureState(), race: { ...race, place: index + 1 },
       })),
       gates: this.interactions.getStates().map((gate) => ({ ...gate, center: gate.center.toArray() })),

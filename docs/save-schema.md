@@ -14,7 +14,8 @@ type SaveData = {
     mode: 'quick-race' | 'time-trial';
     trackId: TrackId; // Three rebuilt worlds.
   };
-  timeTrial: Record<TrackId, { bestLap: number | null; bestTotal: number | null }>;
+  timeTrial: Record<TrackId, { bestLap: number | null; bestTotal: number | null; rulesRevision?: number }>;
+  archivedTimeTrial?: Record<string, { bestLap: number | null; bestTotal: number | null; rulesRevision?: number }>;
 };
 ```
 
@@ -34,3 +35,5 @@ Automated coverage is in `tests/save-store.spec.ts`.
 ## Revised course records
 
 The optional `archivedTimeTrial` dictionary retains retired records such as `neon-leviathan@2` and `sunset-circuit@1`. Reloading does not re-archive or overwrite new world records. Reset Records clears current and archived times.
+
+All three current worlds use rules revision 2 after the skill-chain, drafting and crossing changes. Their previous revision-1 PBs are archived under `breakwater@1`, `nightfall@1` and `sunken-temple@1`; settings and course selection remain intact.

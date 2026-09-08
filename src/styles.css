@@ -1800,6 +1800,8 @@ button:focus-visible {
 #race-minimap polygon { fill: none; stroke: var(--cream); stroke-width: 5; stroke-linejoin: round; }
 #race-minimap .map-target { fill: var(--cyan); }
 #race-minimap .map-player { fill: var(--sun); stroke: var(--ink); stroke-width: 3; }
+#skill-chain-label { color: var(--sun); font-style: italic; font-weight: 1000; }
+.turn-feedback.is-draft-ready { color: var(--sun); filter: drop-shadow(0 0 7px var(--cyan)); }
 #course-feature { background: var(--ink-soft); border-left-color: var(--cyan); }
 #course-feature strong { color: var(--sun); font-style: italic; font-weight: 950; }
 #course-feature span { color: var(--cream); }

@@ -2,7 +2,7 @@ import type { CurrentDefinition } from './CurrentField';
 import type { RouteOption } from './RouteOptions';
 import { validateTrackDefinition } from './TrackValidation';
 import { createWorlds, type TrackId } from './WorldCatalog';
-import type { BlockDefinition, RampDefinition, ShutterDefinition } from './WorldMechanics';
+import type { BlockDefinition, RampDefinition, CrossingDefinition } from './WorldMechanics';
 export type { TrackId } from './WorldCatalog';
 import type { GerstnerWave } from '../systems/WaveSurface';
 
@@ -75,7 +75,7 @@ export type TrackDefinition = Readonly<{
   rulesRevision?: number;
   blocks?: readonly BlockDefinition[];
   ramps?: readonly RampDefinition[];
-  shutters?: readonly ShutterDefinition[];
+  crossings?: readonly CrossingDefinition[];
   currents?: readonly CurrentDefinition[];
   routes?: readonly RouteOption[];
   name: string;

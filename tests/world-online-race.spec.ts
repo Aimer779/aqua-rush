@@ -12,7 +12,7 @@ for (const id of TRACK_IDS) test(`${id}: four human-input pilots finish the auth
   try {
     for (let tick = 1; tick <= 60 * 220 && simulation.race.phase !== 'finished'; tick++) {
       if (tick % 3 === 0) for (const [slot, racer] of simulation.snapshot().racers.entries()) {
-        inputs.set(racer.id, { seq: tick, intent: pilot(simulation.track, racer, slot) });
+        inputs.set(racer.id, { seq: tick, intent: pilot(simulation.track, racer, slot, simulation.elapsed) });
       }
       simulation.step(inputs);
     }

@@ -95,8 +95,8 @@ test.describe('V3 versioned SaveStore contract', () => {
       lastSelection: { mode: 'time-trial', trackId: 'nightfall' },
       timeTrial: {
         ...defaultData().timeTrial,
-        'breakwater': { bestLap: 31.25, bestTotal: 101.5 },
-        'nightfall': { bestLap: 42.75, bestTotal: 134.2 },
+        'breakwater': { bestLap: 31.25, bestTotal: 101.5, rulesRevision: 2 },
+        'nightfall': { bestLap: 42.75, bestTotal: 134.2, rulesRevision: 2 },
       },
     };
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(valid));
@@ -126,8 +126,8 @@ test.describe('V3 versioned SaveStore contract', () => {
       settings: { muted: true, reducedMotion: true },
       lastSelection: { mode: 'time-trial', trackId: 'nightfall' },
       timeTrial: {
-        'breakwater': { bestLap: 33.4, bestTotal: 105.8 },
-        'nightfall': { bestLap: 45.2, bestTotal: 139.6 },
+        'breakwater': { bestLap: 33.4, bestTotal: 105.8, rulesRevision: 2 },
+        'nightfall': { bestLap: 45.2, bestTotal: 139.6, rulesRevision: 2 },
       },
     };
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(legacy));
@@ -146,7 +146,7 @@ test.describe('V3 versioned SaveStore contract', () => {
     expect(result).toEqual({ data: defaultData(), storageAvailable: false, repaired: true });
   });
 
-  test('existing two-course version 1 saves retain PBs and persist a new course independently', () => {
+  test('previous handling records are archived and new records persist independently', () => {
     const storage = new MemoryStorage();
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify({
       version: 1,
@@ -155,12 +155,15 @@ test.describe('V3 versioned SaveStore contract', () => {
       timeTrial: {
         'breakwater': { bestLap: 30, bestTotal: 96 },
         'nightfall': { bestLap: 42, bestTotal: 130 },
+        'sunken-temple': { bestLap: 35, bestTotal: 105 },
       },
     }));
     installWindow(storage);
     const store = new SaveStore();
     const data = store.load().data;
-    expect(data.timeTrial['breakwater']).toEqual({ bestLap: 30, bestTotal: 96 });
+    expect(data.timeTrial).toEqual(defaultData().timeTrial);
+    expect(data.archivedTimeTrial?.['breakwater@1']).toMatchObject({ bestLap: 30, bestTotal: 96 });
+    expect(data.archivedTimeTrial?.['sunken-temple@1']).toMatchObject({ bestLap: 35, bestTotal: 105 });
     expect(data.timeTrial['sunken-temple']).toMatchObject({ bestLap: null, bestTotal: null });
     store.setSelection('time-trial', 'sunken-temple');
     store.recordTimeTrial('sunken-temple', 34, 106);
@@ -169,7 +172,8 @@ test.describe('V3 versioned SaveStore contract', () => {
     expect(reloaded.lastSelection.trackId).toBe('sunken-temple');
     expect(reloaded.settings.muted).toBe(true);
     expect(reloaded.timeTrial['sunken-temple']).toMatchObject({ bestLap: 34, bestTotal: 106 });
-    expect(reloaded.timeTrial['nightfall']).toEqual({ bestLap: 42, bestTotal: 130 });
+    expect(reloaded.timeTrial['nightfall']).toEqual(defaultData().timeTrial['nightfall']);
+    expect(reloaded.archivedTimeTrial?.['nightfall@1']).toMatchObject({ bestLap: 42, bestTotal: 130 });
   });
 
   test('records improve independently per course and never regress', () => {
@@ -199,8 +203,8 @@ test.describe('V3 versioned SaveStore contract', () => {
 
     expect(store.snapshot().timeTrial).toEqual({
       ...defaultData().timeTrial,
-      'breakwater': { bestLap: 30, bestTotal: 99 },
-      'nightfall': { bestLap: 41, bestTotal: 130 },
+      'breakwater': { bestLap: 30, bestTotal: 99, rulesRevision: 2 },
+      'nightfall': { bestLap: 41, bestTotal: 130, rulesRevision: 2 },
     });
   });
 
@@ -230,7 +234,7 @@ test.describe('V3 versioned SaveStore contract', () => {
     installWindow(storage);
     const store = new SaveStore();
     const loaded = store.load();
-    expect(loaded.data.timeTrial['sunken-temple']).toEqual({ bestLap: null, bestTotal: null });
+    expect(loaded.data.timeTrial['sunken-temple']).toEqual(defaultData().timeTrial['sunken-temple']);
     expect(loaded.data.archivedTimeTrial?.['neon-leviathan@2']).toMatchObject({ bestLap: 32, bestTotal: 100 });
     expect(loaded.data.archivedTimeTrial?.['sunset-circuit@1']).toMatchObject({ bestLap: 30, bestTotal: 90 });
     expect(Object.keys(loaded.data.timeTrial)).toEqual(TRACK_IDS);

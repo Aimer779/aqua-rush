@@ -1,4 +1,5 @@
 import { CurrentField } from '../game/CurrentField';
+import { updateDrafting } from '../shared/RaceDrafting';
 import { RaceTrack } from '../game/Track';
 import { Vector3 } from 'three';
 import { SnapshotInterpolation } from './SnapshotInterpolation';
@@ -94,8 +95,15 @@ export class OnlinePrediction {
   private simulate(intent: RaceIntent): void {
     this.predictedElapsed += SIMULATION_STEP;
     const self = this.latest?.racers.find((racer) => racer.id === this.playerId);
+    if (self?.dnf) return;
     this.boat.drive(SIMULATION_STEP, intent, DEFAULT_PLAYER_TUNING, this.latest?.phase === 'racing' && !self?.race.finished);
     this.boat.updateWaterPose(SIMULATION_STEP, this.predictedElapsed, this.waves);
     if (this.latest?.phase === 'racing' && !self?.race.finished) this.collisions.resolve([this.boat], this.track, this.predictedElapsed);
+    const rivals = (this.latest?.racers ?? []).filter(racer => racer.id !== this.playerId && !racer.race.finished && !racer.dnf).map(racer => {
+      const velocity = new Vector3(...racer.body.velocity);
+      return { id: racer.id, velocity, position: new Vector3(...racer.body.position)
+        .addScaledVector(velocity, Math.min(.25, this.predictedElapsed - this.latest!.elapsed)) };
+    });
+    updateDrafting(SIMULATION_STEP, this.boat, rivals, this.latest?.phase === 'racing' && !self?.race.finished);
   }
 }

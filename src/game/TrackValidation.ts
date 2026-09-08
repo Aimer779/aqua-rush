@@ -28,7 +28,7 @@ export function validateTrackDefinition(track: TrackDefinition): void {
   if (track.rocks.some(r => !positive(r.radius) || !positive(r.height))) fail('invalid rock');
   if ([...(track.blocks ?? []), ...(track.ramps ?? [])].some(b => !positive(b.width) || !positive(b.length) || !positive(b.height))) fail('invalid world dimensions');
   if (track.ramps?.some(r => !positive(r.launch))) fail('invalid launch');
-  if (track.shutters?.some(g => !progress(g.progress) || !positive(g.period) || !Number.isFinite(g.offset))) fail('invalid lock');
+  if (track.crossings?.some(g => !progress(g.progress) || !positive(g.period) || !Number.isFinite(g.offset))) fail('invalid lock');
   if (!positive(track.ai.lookAheadScale) || !positive(track.ai.speedScale)) fail('invalid AI tuning');
   if (track.currents?.some(c => !progress(c.progress) || !Number.isFinite(c.lateralOffset) ||
     !positive(c.innerRadius) || !positive(c.outerRadius) || c.innerRadius >= c.outerRadius ||

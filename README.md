@@ -49,15 +49,21 @@ for setup, room rules, usage limits, and verification.
 | Pause / music HUD buttons | Pause/resume and mute/unmute |
 | Touch stick / Boost button | Mobile steering, throttle, reverse, drift, and boost |
 
+Drifts charge through three tiers. Release to burst and refill boost; clean ramp landings and reward gates can continue the sequence. A chain lasts ten seconds and caps at three, raising the boosted speed ceiling from 33 to 35/37 world units per second. Significant contact breaks it. Passive recharge is slower, so the next burst depends more on your driving.
+
+In Quick Race and Online Race, stay 4–23 units behind an aligned moving rival to charge a slipstream. After 1.25 seconds, pull sideways out of the wake to receive the slingshot and boost refill. Stationary, opposing, finished and departed rivals cannot supply a draft. AI racers now spend boost and use drift releases too.
+
+Nightfall's work barges have readable open, warning, crossing and clear phases. The center line can be obstructed; the marked right-side bypass remains open. Timing the center line gives access to an exit energy gate. See [gameplay changes and measured route choices](docs/gameplay-optimization.zh-CN.md).
+
 Audio unlocks on the first keyboard or pointer gesture. If Web Audio is unavailable, the race continues silently.
 
 ## Game design contract
 
 - **Player promise:** pilot the bright yellow hero boat across a large readable ocean, choosing clean lines and optional reward gates without being trapped by invisible walls.
 - **Target feeling:** fast, responsive, forgiving, and competitive rather than physically realistic.
-- **Primary verb:** steer a clean racing line. Secondary verbs are braking/reversing, timing drift-boost bursts, lining up jumps and reading lock openings.
+- **Primary verb:** steer a clean racing line. Secondary verbs are braking/reversing, chaining drift releases, aligning landings, drafting rivals and timing barge crossings.
 - **Objective:** pass all 12 ordered directional sectors for each of three laps. Quick Race adds three rivals; Time Trial adds best-lap, best-total, PB, and new-record pressure.
-- **Pressure:** distinct AI profiles, directional swell, a boost resource, boat/boat contact, visible waterfront architecture, moving locks, ramp landings, and choosing between a jump or the water-level bypass.
+- **Pressure:** distinct AI profiles, directional swell, earned boost, boat/boat contact, visible waterfront architecture, timed barge crossings, ramp landings, and optional water-level bypasses.
 - **Reward:** placement or persistent record improvement, plus Boost Gates and drift-validated Drift Gates reinforced by HUD, VFX, camera, and synthesized audio.
 - **Setback/retry:** collisions scrub speed instead of ending the race. The finish screen and `R`/`Enter` provide a fast full reset.
 - **Skill expression:** hold the fastest line, anticipate turns, avoid contact, and spend boost where the reduced grip is manageable.
@@ -70,7 +76,7 @@ Core loop:
 ## Courses and modes
 
 - **断潮坝 / Breakwater:** terraced cliffs, elevated spillways, two physical launch ramps, low seawall and a marked water-level bypass.
-- **霓虹沉城 / Nightfall:** flooded building canyons, three synchronized moving locks and a metro launch ramp. Lock lights indicate the available gap; the center remains passable.
+- **霓虹沉城 / Nightfall:** flooded building canyons, three synchronized work-barge crossings and a metro launch ramp. Signals warn before the center is obstructed; the marked right bypass remains open.
 - **失落环礁 / Sunken Temple:** monumental stone arches, broken colonnades, a ramp over the ruin wall, and an optional current-assisted outside line.
 - See [world rebuild design and validation](docs/world-rebuild.zh-CN.md) for mechanics, research references and limits.
 - **Quick Race:** player plus KAI, MIRA, and NOX; three laps; placement results.

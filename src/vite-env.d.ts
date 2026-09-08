@@ -31,6 +31,7 @@ interface DiagnosticRacer {
   contact: number;
   airborne: boolean;
   flightActive?: boolean; flightTime?: number; jumps?: number;
+  skillChain?: number; skillKind?: number; skillSerial?: number; draftCharge?: number; draftReady?: boolean;
   landingIntensity: number;
   steering: number;
   throttle: number;
