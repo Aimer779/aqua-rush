@@ -6,7 +6,16 @@ import type { RaceTrack } from './Track';
 export type InteractionPhase = 'ready' | 'feedback' | 'cooldown';
 export type InteractionOutcome = 'none' | 'success' | 'failure';
 
+export type GateClaim = {
+  cooldownRemaining: number;
+  racerId: string;
+  lap: number;
+  outcome: Exclude<InteractionOutcome, 'none'>;
+  feedbackRemaining: number;
+};
+
 export type InteractionState = {
+  claims: GateClaim[];
   id: string;
   kind: InteractionKind;
   center: THREE.Vector3;
@@ -24,9 +33,10 @@ export type InteractionEvent = {
   outcome: Exclude<InteractionOutcome, 'none'>;
 };
 
-type GateRuntime = InteractionState & {
+type GateRuntime = Omit<InteractionState, 'claims'> & {
   definition: InteractionDefinition;
   overlap: Set<string>;
+  claimByRacer: Map<string, GateClaim>;
   feedbackRemaining: number;
 };
 
@@ -35,6 +45,8 @@ export class InteractionSystem {
   private readonly gates: GateRuntime[];
   private readonly events: InteractionEvent[] = [];
   private readonly delta = new THREE.Vector3();
+  private readonly segment = new THREE.Vector3();
+  private readonly closest = new THREE.Vector3();
 
   constructor(track: RaceTrack) {
     this.gates = track.definition.interactions.map((definition) => ({
@@ -48,6 +60,7 @@ export class InteractionSystem {
       activationCount: 0,
       failureCount: 0,
       overlap: new Set<string>(),
+      claimByRacer: new Map<string, GateClaim>(),
       feedbackRemaining: 0,
     }));
   }
@@ -62,11 +75,16 @@ export class InteractionSystem {
       gate.activationCount = 0;
       gate.failureCount = 0;
       gate.overlap.clear();
+      gate.claimByRacer.clear();
     }
   }
 
-  update(deltaSeconds: number, boats: readonly ArcadeBoat[], enabled: boolean): void {
+  update(deltaSeconds: number, boats: readonly ArcadeBoat[], enabled: boolean, lapFor: (racerId: string) => number): void {
     for (const gate of this.gates) {
+      for (const claim of gate.claimByRacer.values()) {
+        claim.feedbackRemaining = Math.max(0, claim.feedbackRemaining - deltaSeconds);
+        claim.cooldownRemaining = Math.max(0, claim.cooldownRemaining - deltaSeconds);
+      }
       gate.cooldownRemaining = Math.max(0, gate.cooldownRemaining - deltaSeconds);
       gate.feedbackRemaining = Math.max(0, gate.feedbackRemaining - deltaSeconds);
       if (gate.feedbackRemaining > 0) gate.phase = 'feedback';
@@ -79,11 +97,22 @@ export class InteractionSystem {
       for (const boat of boats) {
         this.delta.copy(boat.group.position).sub(gate.center);
         const inside = Math.abs(this.delta.y) <= 4.5 && this.delta.x * this.delta.x + this.delta.z * this.delta.z <= gate.definition.halfWidth * gate.definition.halfWidth;
-        if (!inside) continue;
-        insideNow.add(boat.id);
-        if (!enabled || gate.overlap.has(boat.id) || gate.cooldownRemaining > 0) continue;
+        if (inside) insideNow.add(boat.id);
+        // Sweep the actual physics segment, so fast boats cannot skip a narrow reward.
+        this.segment.copy(boat.group.position).sub(boat.previousPosition);
+        const lengthSq = this.segment.lengthSq();
+        const alpha = lengthSq > 0 ? THREE.MathUtils.clamp(
+          this.closest.copy(gate.center).sub(boat.previousPosition).dot(this.segment) / lengthSq, 0, 1) : 0;
+        this.closest.copy(boat.previousPosition).addScaledVector(this.segment, alpha).sub(gate.center);
+        const crossed = Math.abs(this.closest.y) <= 4.5 &&
+          this.closest.x ** 2 + this.closest.z ** 2 <= gate.definition.halfWidth ** 2;
+        const lap = lapFor(boat.id);
+        const previousClaim = gate.claimByRacer.get(boat.id);
+        const unavailable = previousClaim?.lap === lap && (previousClaim.outcome === 'success' || previousClaim.cooldownRemaining > 0);
+        if ((!inside && !crossed) || !enabled || gate.overlap.has(boat.id) || unavailable) continue;
         const success = gate.kind === 'boost-gate' || (boat.drifting && boat.driftQuality >= 0.28);
         gate.outcome = success ? 'success' : 'failure';
+        gate.claimByRacer.set(boat.id, { racerId: boat.id, lap, outcome: gate.outcome, feedbackRemaining: .62, cooldownRemaining: gate.definition.cooldown });
         gate.feedbackRemaining = 0.62;
         gate.cooldownRemaining = gate.definition.cooldown;
         if (success) {
@@ -103,24 +132,33 @@ export class InteractionSystem {
     return this.events.splice(0, this.events.length);
   }
 
-  getStates(): InteractionState[] {
-    return this.gates.map((gate) => ({
-      id: gate.id,
-      kind: gate.kind,
-      center: gate.center.clone(),
-      phase: gate.phase,
-      outcome: gate.outcome,
-      cooldownRemaining: gate.cooldownRemaining,
-      activationCount: gate.activationCount,
-      failureCount: gate.failureCount,
-    }));
+  getStates(racerId?: string, lap?: number): InteractionState[] {
+    return this.gates.map((gate) => {
+      const claim = racerId === undefined ? undefined : gate.claimByRacer.get(racerId);
+      const claimed = claim !== undefined && claim.lap === lap && (claim.outcome === 'success' || claim.cooldownRemaining > 0);
+      return {
+        claims: [...gate.claimByRacer.values()].map(claim => ({ ...claim })),
+        id: gate.id,
+        kind: gate.kind,
+        center: gate.center.clone(),
+        phase: racerId === undefined ? gate.phase : claimed ? (claim.feedbackRemaining > 0 ? 'feedback' : 'cooldown') : 'ready',
+        outcome: racerId === undefined ? gate.outcome : claimed ? claim.outcome : 'none',
+        cooldownRemaining: racerId === undefined ? gate.cooldownRemaining : claimed ? claim.cooldownRemaining : 0,
+        activationCount: gate.activationCount,
+        failureCount: gate.failureCount,
+      };
+    });
   }
 
   /** Presentation-only state from the authoritative room; no rewards are granted here. */
   applyRemoteStates(states: InteractionState[]): void {
     for (const state of states) {
       const gate = this.gates.find((entry) => entry.id === state.id);
-      if (gate) Object.assign(gate, state);
+      if (gate) {
+        const { claims, ...presentation } = state;
+        Object.assign(gate, presentation);
+        gate.claimByRacer = new Map(claims.map(claim => [claim.racerId, { ...claim }]));
+      }
     }
   }
 }

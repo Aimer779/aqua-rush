@@ -1,10 +1,10 @@
 import type { RaceIntent } from './RaceIntent';
-import type { TrackId } from '../game/ContentCatalog';
+import { isOnlineTrackId, type TrackId } from '../game/ContentCatalog';
 import type { InteractionEvent, InteractionState } from '../game/InteractionSystem';
 import type { RaceEvent, RacerRaceState, RacePhase } from '../game/RaceManager';
 import type { BoatState } from './BoatState';
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export const SIMULATION_STEP = 1 / 60;
 export const SNAPSHOT_INTERVAL_MS = 50;
 export const MAX_PLAYERS = 4;
@@ -77,7 +77,7 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
           (value.token !== undefined && (typeof value.token !== 'string' || value.token.length > 64))) return null;
       return { type: 'join', version: PROTOCOL_VERSION, name: value.name.trim(), token: value.token as string | undefined };
     case 'ready': return typeof value.ready === 'boolean' ? { type: 'ready', ready: value.ready } : null;
-    case 'track': return value.trackId === 'sunset-circuit' || value.trackId === 'storm-reef'
+    case 'track': return isOnlineTrackId(value.trackId)
       ? { type: 'track', trackId: value.trackId } : null;
     case 'start': case 'rematch': case 'leave': return { type: value.type };
     case 'loaded': case 'recover': return match() ? { type: value.type, matchId: value.matchId as string } : null;

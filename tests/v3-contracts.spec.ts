@@ -9,7 +9,7 @@ import {
 import { RaceManager, type RacerFrame } from '../src/game/RaceManager';
 import { RaceTrack } from '../src/game/Track';
 
-const EXPECTED_TRACK_IDS = ['sunset-circuit', 'storm-reef'] as const;
+const EXPECTED_TRACK_IDS = ['sunset-circuit', 'storm-reef', 'neon-leviathan', 'caldera-throat', 'storm-needle'] as const;
 
 test.describe('V3 content and directional checkpoint contracts', () => {
   test.beforeEach(({}, testInfo) => {
@@ -19,7 +19,7 @@ test.describe('V3 content and directional checkpoint contracts', () => {
     );
   });
 
-  test('catalog contains exactly two complete courses and exactly two interaction families', () => {
+  test('catalog contains five complete courses and exactly two interaction families', () => {
     expect([...TRACK_IDS].sort()).toEqual([...EXPECTED_TRACK_IDS].sort());
     expect(Object.keys(TRACK_CATALOG).sort()).toEqual([...EXPECTED_TRACK_IDS].sort());
 

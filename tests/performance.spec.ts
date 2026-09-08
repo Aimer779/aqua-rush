@@ -1,3 +1,4 @@
+import { isTrackId } from '../src/game/ContentCatalog';
 import { expect, test } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -11,7 +12,9 @@ import {
 
 const RUN_PRODUCTION_PERFORMANCE = process.env.PERFORMANCE_PRODUCTION_PREVIEW === '1';
 const SAMPLE_DURATION_MS = 8_400;
-const REPORT_PATH = resolve('artifacts', 'performance-1920x1080.json');
+const PERFORMANCE_TRACK = process.env.PERFORMANCE_TRACK ?? 'sunset-circuit';
+if (!isTrackId(PERFORMANCE_TRACK)) throw new Error(`Unknown performance course: ${PERFORMANCE_TRACK}`);
+const REPORT_PATH = resolve('artifacts', `performance-1920x1080-${PERFORMANCE_TRACK}.json`);
 
 type GpuEvidence = {
   vendor: string;
@@ -58,6 +61,11 @@ test('production preview sustains the 1920x1080 active-race performance budget',
   await callRaceHook(page, 'setReducedMotion', false);
   await callRaceHook(page, 'setPausedForScreenshot', false);
   await callRaceHook(page, 'setState', 'active-play');
+  if (PERFORMANCE_TRACK !== 'sunset-circuit') {
+    await callRaceHook(page, 'selectSession', 'quick-race', PERFORMANCE_TRACK);
+    await page.evaluate(() => window.advanceTime!(3100));
+    await callRaceHook(page, 'setPausedForScreenshot', false);
+  }
 
   const productionEvidence = await page.evaluate(() => {
     const resources = performance

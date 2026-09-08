@@ -1,5 +1,5 @@
 import { RECONNECT_MS, ROOM_CODE_PATTERN, type RoomSnapshot } from '../shared/OnlineProtocol';
-import type { TrackId } from '../game/ContentCatalog';
+import { ONLINE_TRACK_IDS, getTrackDefinition, type TrackId } from '../game/ContentCatalog';
 import './online.css';
 
 type LobbyActions = {
@@ -39,7 +39,7 @@ export class OnlineLobby {
           <div class="online-code-row"><span>Room <strong id="online-room-code"></strong></span>
             <button id="online-copy" class="menu-quiet" type="button">Copy code</button></div>
           <label for="online-track">Course</label>
-          <select id="online-track"><option value="sunset-circuit">Sunset Circuit</option><option value="storm-reef">Storm Reef</option></select>
+          <select id="online-track">${ONLINE_TRACK_IDS.map(id => `<option value="${id}">${getTrackDefinition(id).name}</option>`).join('')}</select>
           <ol id="online-players" class="online-players"></ol>
           <p id="online-room-notice" class="online-presence-notice" role="status" aria-live="polite" hidden></p>
           <p id="online-hint"></p>

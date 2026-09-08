@@ -9,6 +9,7 @@ export type AIRacerProfile = {
   laneOffset: number;
   speedScale: number;
   steeringScale: number;
+  /** Base steering look-ahead in world units, independent of circuit length. */
   lookAhead: number;
   personality?: AIRacerPersonality;
 };
@@ -58,7 +59,7 @@ export class AIRacer extends ArcadeBoat {
     const projection = track.project(this.group.position);
     const personalityLookAhead = this.personality === 'clean' ? 1.12 : this.personality === 'aggressive' ? 0.9 : 0.98;
     const lookAhead =
-      this.profile.lookAhead * personalityLookAhead * track.definition.ai.lookAheadScale + Math.min(0.025, Math.abs(this.speed) * 0.00075);
+      (this.profile.lookAhead * personalityLookAhead * track.definition.ai.lookAheadScale + Math.min(10.5, Math.abs(this.speed) * 0.315)) / track.length;
     const lineVariation = this.personality === 'erratic'
       ? Math.sin(elapsed * 0.72 + this.id.length * 1.91) * 0.95
       : this.personality === 'aggressive'
@@ -80,7 +81,7 @@ export class AIRacer extends ArcadeBoat {
     // the rest of the course.
     const expectedCheckpoint = track.getCheckpoint(nextCheckpointIndex);
     const checkpointDelta = (expectedCheckpoint.definition.progress - projection.progress + 1) % 1;
-    if (checkpointDelta < 0.14) this.target.copy(expectedCheckpoint.center);
+    if (checkpointDelta * track.length < 45) this.target.copy(expectedCheckpoint.center).addScaledVector(expectedCheckpoint.normal, 4);
     this.toTarget.copy(this.target).sub(this.group.position).setY(0);
     const desiredHeading = Math.atan2(this.toTarget.x, -this.toTarget.z);
     const headingError = Math.atan2(Math.sin(desiredHeading - this.heading), Math.cos(desiredHeading - this.heading));
@@ -104,6 +105,8 @@ export class AIRacer extends ArcadeBoat {
     const rhythm = this.personality === 'erratic' ? Math.sin(elapsed * 1.17 + 2.4) * 0.045 : 0;
     const aggression = this.personality === 'aggressive' ? 0.035 : this.personality === 'clean' ? -0.01 : 0;
     this.intent.throttle = THREE.MathUtils.clamp((cornerThrottle + rubberBand + rhythm + aggression) * track.definition.ai.speedScale, 0.54, 1);
+    // Brake into large heading errors instead of orbiting a missed narrow sector at full throttle.
+    if (Math.abs(headingError) > .7 && this.speed > 9) this.intent.throttle = -.25;
     const deficit = playerRaceScore - ownRaceScore;
     const boostThreshold = this.personality === 'aggressive' ? 0.1 : this.personality === 'clean' ? 0.34 : 0.2;
     const erraticBoostWindow = this.personality !== 'erratic' || Math.sin(elapsed * 0.91 + 1.2) > -0.25;

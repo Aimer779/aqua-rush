@@ -74,7 +74,7 @@ interface ThreeGameDiagnostics {
   flow: { state: string; inputOwner: 'menu' | 'race' | 'pause' };
   session: {
     mode: 'quick-race' | 'time-trial';
-    trackId: 'sunset-circuit' | 'storm-reef';
+    trackId: import('./game/ContentCatalog').TrackId;
     trackName: string;
     racerCount: number;
     currentLapTime: number;
@@ -170,7 +170,7 @@ interface ThreeGameTestHooks {
   setPausedForScreenshot(paused: boolean): void;
   setReducedMotion(enabled: boolean): void;
   hideDebugUi(hidden: boolean): void;
-  selectSession(mode: 'quick-race' | 'time-trial', trackId: 'sunset-circuit' | 'storm-reef'): void;
+  selectSession(mode: 'quick-race' | 'time-trial', trackId: import('./game/ContentCatalog').TrackId): void;
   recover(): void;
   setPlayerKinematics(x: number, y: number, z: number, vx: number, vy: number, vz: number): void;
 }

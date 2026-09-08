@@ -1,3 +1,4 @@
+import { TRACK_IDS } from '../src/game/ContentCatalog';
 import { expect, test } from '@playwright/test';
 import {
   SAVE_SCHEMA_VERSION,
@@ -48,10 +49,7 @@ const defaultData = (): SaveData => ({
   version: SAVE_SCHEMA_VERSION,
   settings: { muted: false, reducedMotion: false },
   lastSelection: { mode: 'quick-race', trackId: 'sunset-circuit' },
-  timeTrial: {
-    'sunset-circuit': { bestLap: null, bestTotal: null },
-    'storm-reef': { bestLap: null, bestTotal: null },
-  },
+  timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, { bestLap: null, bestTotal: null }])) as SaveData['timeTrial'],
 });
 
 let originalWindowDescriptor: PropertyDescriptor | undefined;
@@ -96,6 +94,7 @@ test.describe('V3 versioned SaveStore contract', () => {
       settings: { muted: true, reducedMotion: true },
       lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
       timeTrial: {
+        ...defaultData().timeTrial,
         'sunset-circuit': { bestLap: 31.25, bestTotal: 101.5 },
         'storm-reef': { bestLap: 42.75, bestTotal: 134.2 },
       },
@@ -137,7 +136,7 @@ test.describe('V3 versioned SaveStore contract', () => {
     const result = new SaveStore().load();
     expect(result.storageAvailable).toBe(true);
     expect(result.repaired).toBe(true);
-    expect(result.data).toEqual({ ...legacy, version: SAVE_SCHEMA_VERSION });
+    expect(result.data).toEqual({ ...legacy, version: SAVE_SCHEMA_VERSION, timeTrial: { ...defaultData().timeTrial, ...legacy.timeTrial } });
     expect(JSON.parse(storage.getItem(SAVE_STORAGE_KEY) ?? 'null')).toEqual(result.data);
   });
 
@@ -145,6 +144,32 @@ test.describe('V3 versioned SaveStore contract', () => {
     installWindow(new ThrowingStorage());
     const result = new SaveStore().load();
     expect(result).toEqual({ data: defaultData(), storageAvailable: false, repaired: true });
+  });
+
+  test('existing two-course version 1 saves retain PBs and persist a new course independently', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(SAVE_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      settings: { muted: true, reducedMotion: false },
+      lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
+      timeTrial: {
+        'sunset-circuit': { bestLap: 30, bestTotal: 96 },
+        'storm-reef': { bestLap: 42, bestTotal: 130 },
+      },
+    }));
+    installWindow(storage);
+    const store = new SaveStore();
+    const data = store.load().data;
+    expect(data.timeTrial['sunset-circuit']).toEqual({ bestLap: 30, bestTotal: 96 });
+    expect(data.timeTrial['neon-leviathan']).toEqual({ bestLap: null, bestTotal: null });
+    store.setSelection('time-trial', 'neon-leviathan');
+    store.recordTimeTrial('neon-leviathan', 34, 106);
+    store.recordTimeTrial('neon-leviathan', NaN, Infinity);
+    const reloaded = new SaveStore().load().data;
+    expect(reloaded.lastSelection.trackId).toBe('neon-leviathan');
+    expect(reloaded.settings.muted).toBe(true);
+    expect(reloaded.timeTrial['neon-leviathan']).toEqual({ bestLap: 34, bestTotal: 106 });
+    expect(reloaded.timeTrial['storm-reef']).toEqual({ bestLap: 42, bestTotal: 130 });
   });
 
   test('records improve independently per course and never regress', () => {
@@ -173,6 +198,7 @@ test.describe('V3 versioned SaveStore contract', () => {
     });
 
     expect(store.snapshot().timeTrial).toEqual({
+      ...defaultData().timeTrial,
       'sunset-circuit': { bestLap: 30, bestTotal: 99 },
       'storm-reef': { bestLap: 41, bestTotal: 130 },
     });
@@ -192,10 +218,7 @@ test.describe('V3 versioned SaveStore contract', () => {
       version: SAVE_SCHEMA_VERSION,
       settings: { muted: true, reducedMotion: true },
       lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
-      timeTrial: {
-        'sunset-circuit': { bestLap: null, bestTotal: null },
-        'storm-reef': { bestLap: null, bestTotal: null },
-      },
+      timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, { bestLap: null, bestTotal: null }])) as SaveData['timeTrial'],
     });
   });
 });

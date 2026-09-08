@@ -1,7 +1,10 @@
+import { validateTrackDefinition } from './TrackValidation';
+import { createExperimentalTracks, type ExperimentalTrackId } from './ExperimentalMapPack';
 import type { GerstnerWave } from '../systems/WaveSurface';
 
 export type RaceMode = 'quick-race' | 'time-trial';
-export type TrackId = 'sunset-circuit' | 'storm-reef';
+export type BaseTrackId = 'sunset-circuit' | 'storm-reef';
+export type TrackId = BaseTrackId | ExperimentalTrackId;
 export type InteractionKind = 'boost-gate' | 'drift-gate';
 
 export type WavePreset = Readonly<{
@@ -65,6 +68,7 @@ export type TimeTrialTargets = Readonly<{
 }>;
 
 export type LandmarkDefinition = Readonly<{
+  kind?: 'cargo' | 'volcano' | 'turbine';
   id: string;
   progress: number;
   lateralOffset: number;
@@ -72,6 +76,7 @@ export type LandmarkDefinition = Readonly<{
 
 export type TrackDefinition = Readonly<{
   id: TrackId;
+  experimental?: boolean;
   name: string;
   displayName: string;
   subtitle: string;
@@ -180,7 +185,7 @@ const checkpointSet = (width: number): readonly CheckpointDefinition[] => [
   { id: 'finish', progress: 0, halfWidth: width, height: 6, visible: true, role: 'finish' },
 ];
 
-export const TRACK_CATALOG: Readonly<Record<TrackId, TrackDefinition>> = {
+const BASE_TRACKS: Readonly<Record<BaseTrackId, TrackDefinition>> = {
   'sunset-circuit': {
     id: 'sunset-circuit',
     name: 'Sunset Circuit',
@@ -262,7 +267,21 @@ export const TRACK_CATALOG: Readonly<Record<TrackId, TrackDefinition>> = {
   },
 } as const;
 
+const experiments = createExperimentalTracks(BASE_TRACKS['sunset-circuit'], BASE_TRACKS['storm-reef']);
+export const TRACK_CATALOG = Object.freeze(Object.fromEntries([
+  ...Object.entries(BASE_TRACKS), ...experiments.map(track => [track.id, track]),
+])) as Readonly<Record<TrackId, TrackDefinition>>;
+Object.values(TRACK_CATALOG).forEach(validateTrackDefinition);
+export const ONLINE_TRACK_IDS: readonly BaseTrackId[] = ['sunset-circuit', 'storm-reef'];
+export function isTrackId(value: unknown): value is TrackId {
+  return typeof value === 'string' && Object.hasOwn(TRACK_CATALOG, value);
+}
+export function isOnlineTrackId(value: unknown): value is BaseTrackId {
+  return ONLINE_TRACK_IDS.some(id => id === value);
+}
+
 export function getTrackDefinition(id: TrackId): TrackDefinition {
+  if (!isTrackId(id)) throw new Error(`Unknown track: ${id}`);
   return TRACK_CATALOG[id];
 }
 

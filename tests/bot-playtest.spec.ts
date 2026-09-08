@@ -1,3 +1,4 @@
+import { isTrackId } from '../src/game/ContentCatalog';
 import { expect, test } from '@playwright/test';
 import {
   callRaceHook,
@@ -17,7 +18,7 @@ const BOOST_ENABLED = process.env.BOT_DISABLE_BOOST !== '1';
 const BOT_TRACK = process.env.BOT_TRACK ?? 'sunset-circuit';
 const BOT_MODE = process.env.BOT_MODE ?? 'quick-race';
 
-if (BOT_TRACK !== 'sunset-circuit' && BOT_TRACK !== 'storm-reef') {
+if (!isTrackId(BOT_TRACK)) {
   throw new Error(`Unsupported BOT_TRACK: ${BOT_TRACK}`);
 }
 if (BOT_MODE !== 'quick-race' && BOT_MODE !== 'time-trial') {
