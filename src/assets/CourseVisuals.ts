@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ARCADE_PALETTE, createOutlineMesh, MaterialLibrary } from './Materials';
 import type { EnvironmentPreset, TrackDefinition } from '../game/ContentCatalog';
+import { createMapLandmark } from './MapLandmarks';
 import type { RaceTrack } from '../game/Track';
 
 export type CourseVisualOptions = {
@@ -170,7 +171,34 @@ export class CourseVisuals {
     this.createBuoys(samples, track.halfWidth * 2);
     this.createCheckpointInstances(track);
     this.createVisibleRocks(track);
-    this.createLandmark(track.definition);
+    for (const spec of track.definition.landmarks) {
+      if (spec.kind) {
+        const landmark = createMapLandmark(spec.kind);
+        landmark.name = spec.id;
+        landmark.position.copy(track.getOffsetPoint(spec.progress, spec.lateralOffset));
+        landmark.rotation.y = -track.headingAt(spec.progress);
+        this.courseRoot.add(landmark);
+        const resources = new Set<THREE.BufferGeometry | THREE.Material>();
+        landmark.traverse(object => {
+          if (!(object instanceof THREE.Mesh)) return;
+          resources.add(object.geometry);
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach(material => resources.add(material));
+        });
+        this.ownedCourseResources.push(...resources);
+      } else this.createLandmark(track, spec);
+    }
+    if (track.definition.id === 'storm-needle') {
+      const geometry = new THREE.BoxGeometry(15, 2.5, 3.4);
+      const material = new THREE.MeshToonMaterial({ color: 0x354956, gradientMap: this.materials.gradientMap });
+      for (const gate of track.definition.interactions) {
+        const span = new THREE.Mesh(geometry, material);
+        span.position.copy(track.getPointAt(gate.progress)).setY(9);
+        span.rotation.y = -track.headingAt(gate.progress);
+        this.courseRoot.add(span);
+      }
+      this.ownedCourseResources.push(geometry, material);
+    }
   }
 
   setCourse(centerline: readonly THREE.Vector3[], courseWidth = 8.5, buoySpacing = 7): void {
@@ -273,7 +301,7 @@ export class CourseVisuals {
       const radius = (this.environment?.storm ? 170 : 105) + (cluster % 2) * 18;
       position.set(
         Math.cos(angle) * radius + (random() - 0.5) * 9,
-        (this.environment?.storm ? 13 : 18) + random() * 11,
+        40 + random() * 11,
         Math.sin(angle) * radius + (random() - 0.5) * 9,
       );
       scale.set(3.2 + random() * 4.4, 1.2 + random() * 2.2, 1.8 + random() * 3.2);
@@ -296,7 +324,8 @@ export class CourseVisuals {
     const greenMaterial = new THREE.MeshToonMaterial({ color: this.environment?.storm ? 0x556867 : 0x66a857, gradientMap: this.materials.gradientMap });
     for (let index = 0; index < 7; index += 1) {
       const angle = (index / 7) * Math.PI * 2 + 0.18;
-      const radius = (this.environment?.storm ? 165 : 98) + (index % 3) * 13;
+      // Background islands stay beyond the playable square, including expanded courses.
+      const radius = (440 + (index % 3) * 13) / Math.max(Math.abs(Math.cos(angle)), Math.abs(Math.sin(angle)));
       const height = 7 + random() * 9;
       const base = new THREE.Mesh(new THREE.ConeGeometry(8 + random() * 7, height, 7, 2), rockMaterial);
       base.position.set(Math.cos(angle) * radius, -height * 0.3, Math.sin(angle) * radius);
@@ -459,12 +488,12 @@ export class CourseVisuals {
       color: this.environment?.storm ? 0x293c47 : 0x496b6a,
       gradientMap: this.materials.gradientMap,
     });
-    const mesh = new THREE.InstancedMesh(geometry, material, track.rocks.length);
+    const mesh = new THREE.InstancedMesh(geometry, material, track.definition.rocks.length);
     mesh.name = 'physicalRockHazards';
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
     const scale = new THREE.Vector3();
-    track.rocks.forEach((rock, index) => {
+    track.rocks.filter(rock => !rock.id.startsWith('landmark:')).forEach((rock, index) => {
       quaternion.setFromEuler(new THREE.Euler(0.12 * index, 0.73 * index, 0.08 * index));
       scale.set(rock.radius, rock.height, rock.radius * 0.8);
       matrix.compose(rock.center.clone().setY(rock.height * 0.34 - 0.4), quaternion, scale);
@@ -476,13 +505,13 @@ export class CourseVisuals {
     this.ownedCourseResources.push(geometry, material);
   }
 
-  private createLandmark(definition: TrackDefinition): void {
+  private createLandmark(track: RaceTrack, spec: TrackDefinition['landmarks'][number]): void {
+    const definition = track.definition;
     const root = new THREE.Group();
     const stormKit = definition.environmentKit === 'storm-reef';
-    root.name = stormKit ? 'stormRockArchAndWrecks' : 'sunsetLighthouseAndSpectators';
-    const progress = definition.landmarks[0]?.progress ?? (stormKit ? 0.56 : 0.62);
-    const centerline = definition.controlPoints[Math.floor(progress * definition.controlPoints.length) % definition.controlPoints.length];
-    root.position.set(centerline[0] * 1.28, 0, centerline[1] * 1.28);
+    root.name = spec.id;
+    root.position.copy(track.getOffsetPoint(spec.progress, spec.lateralOffset));
+    root.rotation.y = -track.headingAt(spec.progress);
     const rockMaterial = new THREE.MeshToonMaterial({ color: definition.environment.storm ? 0x263a47 : 0xf3e4c2, gradientMap: this.materials.gradientMap });
     const signalMaterial = new THREE.MeshBasicMaterial({ color: definition.environment.storm ? 0xff694f : 0xffd85a, toneMapped: false });
     if (stormKit) {
@@ -522,7 +551,8 @@ export class CourseVisuals {
       }
       warnings.instanceMatrix.needsUpdate = true;
       warnings.name = 'stormWarningLights';
-      root.add(wrecks, warnings);
+      if (spec.id.includes('wreck')) root.add(wrecks, warnings);
+      else { root.remove(wrecks); }
       this.ownedCourseResources.push(pillarGeometry, spanGeometry, warning.geometry, wreckGeometry, warningGeometry, rockMaterial, signalMaterial, wreckMaterial);
     } else {
       const towerGeometry = new THREE.CylinderGeometry(1.4, 2.4, 14, 10, 1);
@@ -555,13 +585,15 @@ export class CourseVisuals {
       flags.instanceMatrix.needsUpdate = true;
       spectators.name = 'spectatorBoats';
       flags.name = 'courseFlags';
-      root.add(tower, lantern, spectators, flags);
+      if (spec.id.includes('spectators')) root.add(spectators, flags);
+      else root.add(tower, lantern);
       this.ownedCourseResources.push(towerGeometry, lanternGeometry, spectatorGeometry, flagGeometry, rockMaterial, signalMaterial, spectatorMaterial, flagMaterial);
     }
     this.courseRoot.add(root);
   }
 
   private clearCourse(): void {
+    this.courseRoot.traverse(object => { if (object instanceof THREE.InstancedMesh) object.dispose(); });
     this.courseRoot.clear();
     this.ownedCourseResources.forEach((resource) => resource.dispose());
     this.ownedCourseResources = [];

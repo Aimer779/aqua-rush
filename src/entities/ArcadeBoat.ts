@@ -55,6 +55,7 @@ export type WaveHandlingState = {
 };
 
 export class ArcadeBoat {
+  readonly previousPosition = new THREE.Vector3();
   private static readonly activeBoats = new Set<ArcadeBoat>();
 
   readonly group = new THREE.Group();
@@ -119,6 +120,7 @@ export class ArcadeBoat {
   }
 
   drive(delta: number, intent: RaceIntent, tuning: BoatTuning, enabled: boolean): void {
+    this.previousPosition.copy(this.group.position);
     const throttle = enabled ? THREE.MathUtils.clamp(intent.throttle, -1, 1) : 0;
     const steer = enabled ? THREE.MathUtils.clamp(intent.steer, -1, 1) : 0;
     const boostHeld = enabled && intent.boost && throttle > 0.05;
@@ -365,6 +367,7 @@ export class ArcadeBoat {
 
   reset(position: THREE.Vector3, heading: number): void {
     this.group.position.copy(position);
+    this.previousPosition.copy(position);
     this.heading = heading;
     this.speed = 0;
     this.velocity.set(0, 0, 0);

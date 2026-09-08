@@ -1,6 +1,6 @@
 # Aqua Rush V3 TrackDefinition
 
-`src/game/ContentCatalog.ts` is the authored content source. `TRACK_CATALOG` contains exactly `sunset-circuit` and `storm-reef`; there is no implicit third/default content definition.
+`src/game/ContentCatalog.ts` is the authored content source. `TRACK_CATALOG` contains `sunset-circuit`, `storm-reef`, `neon-leviathan`, `caldera-throat`, and `storm-needle`. The last three are explicitly experimental local courses; `ONLINE_TRACK_IDS` permits only the first two. Unknown IDs are rejected.
 
 ## Stable fields
 
@@ -37,10 +37,10 @@ Reverse, side, vertical, low-speed, repeated overlap, skipped, and out-of-order 
 
 ## Open water and recovery
 
-`halfWidth` is advisory. It is used for AI line choice, marker placement, guide presentation, and off-route feedback only. `CollisionSystem` resolves boats, catalogued visible rocks, and the extreme ±400-unit world safety bound. It never pushes a boat back into a track corridor.
+`halfWidth` is advisory. It is used for AI line choice, marker placement, guide presentation, and off-route feedback only. `CollisionSystem` resolves boats, catalogued visible rocks and shared landmark footprints, and the extreme ±400-unit world safety bound. It never pushes a boat back into a track corridor.
 
-Recovery moves the player to the last valid sector without changing lap or expected checkpoint. It is an explicit `X`/Pause action; off-route and stationary states only change its presentation and eligibility diagnostics.
+Recovery moves the player to the last valid sector without changing lap, expected checkpoint, gate claims, or remaining boost. It is an explicit `X`/Pause action; off-route and stationary states only change its presentation and eligibility diagnostics.
 
 ## Content extension rule
 
-V3 is intentionally locked to two courses. Any future course must be a product decision that updates scope, tests, menu copy, bot evidence, visual baselines, performance budgets, and this document—not an unreviewed catalog append.
+The approved Map Pack expansion adds three P0 courses via `ExperimentalMapPack.ts`. Each definition is validated at registration. `landmarks.kind` selects cargo, volcano or turbine modules; positions use arc-length progress plus lateral offset. `LandmarkFootprints.ts` shares visible foundations with collision proxies. Advanced flow, moving-ship and flight designs remain unregistered until implemented and tested. See [implementation evidence](map-expansion-review.zh-CN.md).

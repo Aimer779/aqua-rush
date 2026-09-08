@@ -210,7 +210,7 @@ test.describe('V3 runtime product contracts', () => {
     expectNoRuntimeErrors(errors);
   });
 
-  test('Boost Gate runs ready to success feedback, cooldown, and ready without overlap retrigger', async ({ page }) => {
+  test('Boost Gate runs ready to success feedback, cooldown for the rest of the lap without overlap retrigger', async ({ page }) => {
     const errors = captureRuntimeErrors(page);
     let diagnostics = await prepareTimeTrial(page, 'sunset-circuit');
     const gate = interactionGate('sunset-circuit', 'boost-gate');
@@ -245,7 +245,7 @@ test.describe('V3 runtime product contracts', () => {
 
     await advanceGame(page, (gate.definition.cooldown + 0.2) * 1_000);
     const ready = (await readRaceDiagnostics(page)).interactions.gates.find((candidate) => candidate.id === gate.definition.id);
-    expect(ready).toMatchObject({ phase: 'ready', outcome: 'none', activationCount: 1 });
+    expect(ready).toMatchObject({ phase: 'cooldown', outcome: 'success', activationCount: 1 });
     expectNoRuntimeErrors(errors);
   });
 

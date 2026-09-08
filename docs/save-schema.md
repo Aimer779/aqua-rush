@@ -12,16 +12,13 @@ type SaveData = {
   };
   lastSelection: {
     mode: 'quick-race' | 'time-trial';
-    trackId: 'sunset-circuit' | 'storm-reef';
+    trackId: TrackId; // Five registered courses.
   };
-  timeTrial: {
-    'sunset-circuit': { bestLap: number | null; bestTotal: number | null };
-    'storm-reef': { bestLap: number | null; bestTotal: number | null };
-  };
+  timeTrial: Record<TrackId, { bestLap: number | null; bestTotal: number | null }>;
 };
 ```
 
-Times are positive finite seconds. A result replaces a stored time only when it is lower. Course records are independent.
+Times are positive finite seconds. A result replaces a stored time only when it is lower. Course records are independent. Missing entries in existing two-course saves are filled with null records for the three new courses; recognized old records and settings are retained. This is an additive content extension of version 1.
 
 ## Failure handling
 

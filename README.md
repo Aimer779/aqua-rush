@@ -1,6 +1,6 @@
 # Aqua Rush
 
-Aqua Rush is a cel-shaded arcade boat racing game built with Vite, Three.js, TypeScript, and ES modules. It has two courses: race three AI rivals in Quick Race, chase persistent per-course records in solo Time Trial, or race 2–4 friends in Online Race using a room code. All modes use three laps, directional checkpoint planes, open-water navigation, shared CPU/GPU wave truth, course interactions, and responsive desktop/mobile controls.
+Aqua Rush is a cel-shaded arcade boat racing game built with Vite, Three.js, TypeScript, and ES modules. It has five local courses (including three experimental Map Pack courses) and two online courses: race three AI rivals in Quick Race, chase persistent per-course records in solo Time Trial, or race 2–4 friends in Online Race using a room code. All modes use three laps, directional checkpoint planes, open-water navigation, shared CPU/GPU wave truth, course interactions, and responsive desktop/mobile controls.
 
 ## Run the game
 
@@ -61,7 +61,7 @@ Audio unlocks on the first keyboard or pointer gesture. If Web Audio is unavaila
 - **Reward:** placement or persistent record improvement, plus Boost Gates and drift-validated Drift Gates reinforced by HUD, VFX, camera, and synthesized audio.
 - **Setback/retry:** collisions scrub speed instead of ending the race. The finish screen and `R`/`Enter` provide a fast full reset.
 - **Skill expression:** hold the fastest line, anticipate turns, avoid contact, and spend boost where the reduced grip is manageable.
-- **Non-goals:** infinite/projected-grid water, rigid-body hydrodynamics, career progression, public matchmaking, accounts, weapons, ghosts, cinematic story scenes, or more than two courses.
+- **Non-goals:** infinite/projected-grid water, rigid-body hydrodynamics, career progression, public matchmaking, accounts, weapons, ghosts, cinematic story scenes.
 
 Core loop:
 
@@ -71,6 +71,7 @@ Core loop:
 
 - **Sunset Circuit:** warm sunset water, green islands, a lighthouse, spectator boats, flags, broad sweepers, and forgiving optional lines.
 - **Storm Reef:** cold overcast water, stronger cross-swell, rocky channel, hairpin, broad sweeper, closing chicane, rock arch, warning lights, wreck silhouettes, and a risky reward line.
+- **Experimental local courses:** 霓虹巨兽港 (Neon Leviathan), 龙喉火山 (Caldera Throat), and 风暴针眼 (Storm Needle), with new layouts, procedural landmarks, and per-racer/per-lap rewards. See [map pack review and implementation](docs/map-expansion-review.zh-CN.md).
 - **Quick Race:** player plus KAI, MIRA, and NOX; three laps; placement results.
 - **Time Trial:** player only; three laps; current/best lap, best total, PB comparison, new-record results, and versioned local persistence.
 - **Online Race:** 2–4 human racers; room codes, shared countdown, authoritative results, short reconnect window, and return-to-lobby rematches. Pause affects only your controls; online races do not write Time Trial records.
@@ -82,7 +83,7 @@ The ocean is finite: roughly 800×800 units are playable and 1200×1200 are visi
 - `src/core`: render loop, renderer sizing/DPR, and unified keyboard/touch input.
 - `src/game`: catalog-driven content, app flow, versioned save store, directional checkpoint validation, open-water race/session rules, interactions, laps/placement, and deterministic QA hooks.
 - `src/entities`: multi-point wave-following arcade boat motion, the player, and personality-driven look-ahead AI racers with avoidance and light rubber-banding.
-- `src/assets`: shared toon materials, four procedural boat silhouettes, finite LOD shader ocean, wave-following guide, instanced gates/markers, two world kits, navigation beacon, and pooled VFX.
+- `src/assets`: shared toon materials, four procedural boat silhouettes, finite LOD shader ocean, wave-following guide, instanced gates/markers, procedural world kits, navigation beacon, and pooled VFX.
 - `src/systems`: shared Gerstner wave truth, persistent collision separation, spring chase camera, responsive HUD, Web Audio synthesis, and diagnostics.
 - `tests`: race rules, real keyboard control, AI movement, natural full-race bot checks, pause/mute behavior, 1920×1080 performance, canvas smoke tests, and truthful deterministic visual states.
 - `src/shared`, `src/network`, `server`: shared headless race simulation, client prediction/interpolation, room UI and the Cloudflare Worker/Durable Object service.

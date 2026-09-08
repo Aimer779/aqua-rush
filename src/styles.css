@@ -1708,3 +1708,29 @@ button:focus-visible {
   .results-screen > p { display: none; }
   .time-trial-results { margin: 6px 0; }
 }
+
+/* The course shelf scrolls independently so all courses remain reachable on touch screens. */
+.course-card-grid { max-height: 62vh; overflow-y: auto; padding: 5px; }
+.course-art svg { width: 100%; height: 100%; padding: 14px; position: relative; z-index: 1; }
+.course-art polygon { fill: rgba(10, 30, 50, .25); stroke: #e3ffff; stroke-width: 3; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.course-card[data-track="neon-leviathan"] .course-art { background: linear-gradient(145deg, #25134d, #11758a); }
+.course-card[data-track="caldera-throat"] .course-art { background: linear-gradient(145deg, #241f31, #a94324); }
+.course-card[data-track="storm-needle"] .course-art { background: linear-gradient(145deg, #122437, #54798a); }
+
+.course-card[data-track="neon-leviathan"] .course-art::before,
+.course-card[data-track="neon-leviathan"] .course-art::after,
+.course-card[data-track="caldera-throat"] .course-art::before,
+.course-card[data-track="caldera-throat"] .course-art::after,
+.course-card[data-track="storm-needle"] .course-art::before,
+.course-card[data-track="storm-needle"] .course-art::after { display: none; }
+@media (min-width: 1000px) {
+  .course-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .course-card { min-height: 200px; padding-bottom: 12px; }
+  .course-art { height: 80px; }
+  .course-card .selection-copy { padding: 10px 14px 0; }
+  .course-card .selection-copy > strong { font-size: 1.3rem; }
+  .course-card .selection-copy > small { font-size: .61rem; line-height: 1.4; }
+  .course-record { margin-top: 8px; }
+}
+
+.course-card[data-experimental="true"] .course-meta i { display: inline; }

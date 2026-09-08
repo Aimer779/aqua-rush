@@ -30,9 +30,9 @@ import { OnlineController } from '../network/OnlineController';
 import { NEUTRAL_INPUT, type RoomPhase, type RoomSnapshot } from '../shared/OnlineProtocol';
 
 const AI_CONFIG = [
-  { id: 'coral', name: 'KAI', color: ARCADE_PALETTE.coral, modelProfile: 'kai', personality: 'aggressive', laneOffset: 1.45, speedScale: 0.98, steeringScale: 1.05, lookAhead: 0.034 },
-  { id: 'cyan', name: 'MIRA', color: ARCADE_PALETTE.cyan, modelProfile: 'mira', personality: 'clean', laneOffset: -1.45, speedScale: 1.015, steeringScale: 0.96, lookAhead: 0.041 },
-  { id: 'violet', name: 'NOX', color: ARCADE_PALETTE.violet, modelProfile: 'nox', personality: 'erratic', laneOffset: 0.15, speedScale: 0.965, steeringScale: 1.1, lookAhead: 0.031 },
+  { id: 'coral', name: 'KAI', color: ARCADE_PALETTE.coral, modelProfile: 'kai', personality: 'aggressive', laneOffset: 1.45, speedScale: 0.98, steeringScale: 1.05, lookAhead: 14.28 },
+  { id: 'cyan', name: 'MIRA', color: ARCADE_PALETTE.cyan, modelProfile: 'mira', personality: 'clean', laneOffset: -1.45, speedScale: 1.015, steeringScale: 0.96, lookAhead: 17.22 },
+  { id: 'violet', name: 'NOX', color: ARCADE_PALETTE.violet, modelProfile: 'nox', personality: 'erratic', laneOffset: 0.15, speedScale: 0.965, steeringScale: 1.1, lookAhead: 13.02 },
 ] as const;
 
 type SessionRecordResult = { newLapRecord: boolean; newTotalRecord: boolean; previousBestTotal: number | null };
@@ -254,9 +254,9 @@ export class Game {
       this.publishDiagnostics();
       return;
     }
-    this.elapsed += delta;
+    if (!this.paused) this.elapsed += delta;
     const visualElapsed = this.reducedMotion ? 0 : this.elapsed;
-    this.ocean.update(visualElapsed, this.player.group.position);
+    this.ocean.update(this.elapsed, this.player.group.position);
     this.course.update(visualElapsed, this.camera.position);
 
     if (this.isMenuFlow()) {
@@ -277,14 +277,14 @@ export class Game {
 
     this.collisionCooldown = Math.max(0, this.collisionCooldown - delta);
     const canRace = this.race.phase === 'racing';
-    this.player.update(delta, visualElapsed, this.input, this.tuning, this.waves, canRace && !this.race.getState(this.player.id).finished);
+    this.player.update(delta, this.elapsed, this.input, this.tuning, this.waves, canRace && !this.race.getState(this.player.id).finished);
     const playerScore = this.race.raceScore(this.player.id);
     for (const racer of this.aiRacers) {
       if (!this.activeBoats.includes(racer)) continue;
       const state = this.race.getState(racer.id);
       racer.update(
         delta,
-        visualElapsed,
+        this.elapsed,
         this.track,
         this.waves,
         this.race.raceScore(racer.id),
@@ -296,7 +296,7 @@ export class Game {
 
     this.collisionFrame = canRace ? this.collision.resolve(this.activeBoats, this.track) : { count: 0, strongest: 0 };
     this.handleCollisions();
-    this.interactions.update(delta, this.activeBoats, canRace);
+    this.interactions.update(delta, this.activeBoats.filter(boat => !this.race.getState(boat.id).finished), canRace, id => this.race.getState(id).lap);
     this.handleInteractionEvents(this.interactions.consumeEvents());
     this.collectRacerFrames();
     this.race.update(delta, this.racerFrames, this.track);
@@ -410,7 +410,7 @@ export class Game {
       if (body) boat.restoreState(body);
       boat.group.visible = !snapshot.players.find((player) => player.id === id)?.dnf;
     }
-    this.ocean.update(visualElapsed, this.player.group.position);
+    this.ocean.update(this.elapsed, this.player.group.position);
     this.course.update(visualElapsed, this.camera.position);
     this.updatePresentation(delta, visualElapsed);
     this.updateHud();
@@ -517,7 +517,7 @@ export class Game {
     const playerState = this.race.getState(this.player.id);
     const projection = this.track.project(this.player.group.position);
     this.guide.root.visible = true;
-    this.guide.update(visualElapsed, {
+    this.guide.update(this.elapsed, {
       progress: playerState.progress,
       offRoute: projection.distance,
       wrongWay: playerState.wrongWay,
@@ -526,9 +526,9 @@ export class Game {
     });
     const nextCheckpoint = this.track.getCheckpoint(playerState.nextCheckpoint);
     const checkpointDistance = this.player.group.position.distanceTo(nextCheckpoint.center);
-    this.navigationBeacon.update(visualElapsed, nextCheckpoint.center, projection.distance > 45 || checkpointDistance < 120);
-    const interactionStates = this.interactions.getStates();
-    this.interactionVisuals.update(interactionStates, visualElapsed);
+    this.navigationBeacon.update(this.elapsed, nextCheckpoint.center, projection.distance > 45 || checkpointDistance < 120);
+    const interactionStates = this.interactions.getStates(this.online?.active ? this.online.connection.playerId : this.player.id, this.race.getState(this.player.id).lap);
+    this.interactionVisuals.update(interactionStates, this.elapsed);
 
     for (const boat of this.activeBoats) {
       const state = this.race.getState(boat.id);
@@ -722,7 +722,9 @@ export class Game {
     const checkpoint = this.track.getCheckpoint(lastIndex);
     this.recoveryPosition.copy(checkpoint.center).addScaledVector(checkpoint.normal, 2.2);
     this.recoveryPosition.y = this.waves.getHeight(this.recoveryPosition.x, this.recoveryPosition.z, this.elapsed) + 0.42;
+    const remainingBoost = this.player.boost;
     this.player.reset(this.recoveryPosition, Math.atan2(checkpoint.normal.x, -checkpoint.normal.z));
+    this.player.boost = remainingBoost;
     this.player.updateWaterPose(1, this.elapsed, this.waves);
     this.race.synchronizeFrame({ id: this.player.id, position: this.player.group.position, velocity: this.player.velocity }, this.track);
     this.cameraRig.snapTo(this.player);
@@ -808,7 +810,7 @@ export class Game {
     });
     this.hud.onOtherCourse(() => {
       if (this.online.active) return;
-      const other = this.config.trackId === 'sunset-circuit' ? 'storm-reef' : 'sunset-circuit';
+      const other = TRACK_IDS[(TRACK_IDS.indexOf(this.config.trackId) + 1) % TRACK_IDS.length];
       this.showCourseSelection(this.config.mode, other);
     });
   }
@@ -935,7 +937,7 @@ export class Game {
     if (!playerDiagnostic) return;
     const projection = this.track.project(this.player.group.position);
     const offRouteState = projection.distance > 90 ? 'severe' : projection.distance > 45 ? 'significant' : projection.distance > 18 ? 'mild' : 'on-route';
-    const interactionStates = this.interactions.getStates();
+    const interactionStates = this.interactions.getStates(this.online?.active ? this.online.connection.playerId : this.player.id, this.race.getState(this.player.id).lap);
     window.__THREE_GAME_DIAGNOSTICS__ = {
       frame: this.frame,
       elapsed: this.elapsed,

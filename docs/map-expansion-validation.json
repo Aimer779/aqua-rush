@@ -1,0 +1,149 @@
+{
+  "date": "2026-09-08",
+  "baseline": "fbad77f",
+  "sourceZipSHA256": "3a9185d196b64af968fb74760168ca9f25e7caee0e6f032206ffbcf43b7479a8",
+  "sourceFilesVerified": 45,
+  "packCoreTests": 14,
+  "packGeometryMaps": 6,
+  "fullSuite": {
+    "passed": 127,
+    "skipped": 59
+  },
+  "finalMapContracts": {
+    "passed": 44,
+    "skipped": 32
+  },
+  "onlineWithFullRaces": {
+    "passed": 13,
+    "skipped": 2
+  },
+  "natural": [
+    {
+      "id": "neon-leviathan",
+      "raceTime": 102.21666666666215,
+      "sectors": 36,
+      "recoveries": 0
+    },
+    {
+      "id": "caldera-throat",
+      "raceTime": 110.98333333332832,
+      "sectors": 36,
+      "recoveries": 0
+    },
+    {
+      "id": "storm-needle",
+      "raceTime": 100.43333333332892,
+      "sectors": 36,
+      "recoveries": 0
+    }
+  ],
+  "performance": [
+    {
+      "id": "sunset-circuit",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "sampleDurationMs": 8401.4,
+      "timing": {
+        "averageFrameMs": 6.057,
+        "p50FrameMs": 6.1,
+        "p95FrameMs": 6.2,
+        "p99FrameMs": 6.2,
+        "averageFps": 165.09,
+        "framesOver25Ms": 0,
+        "longestRunOver25Ms": 0
+      },
+      "renderer": {
+        "calls": 45,
+        "triangles": 27894,
+        "geometries": 118,
+        "textures": 7
+      }
+    },
+    {
+      "id": "storm-reef",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "sampleDurationMs": 8400.2,
+      "timing": {
+        "averageFrameMs": 6.056,
+        "p50FrameMs": 6.1,
+        "p95FrameMs": 6.2,
+        "p99FrameMs": 6.2,
+        "averageFps": 165.12,
+        "framesOver25Ms": 0,
+        "longestRunOver25Ms": 0
+      },
+      "renderer": {
+        "calls": 48,
+        "triangles": 40222,
+        "geometries": 119,
+        "textures": 7
+      }
+    },
+    {
+      "id": "neon-leviathan",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "sampleDurationMs": 8401.8,
+      "timing": {
+        "averageFrameMs": 6.058,
+        "p50FrameMs": 6.1,
+        "p95FrameMs": 6.2,
+        "p99FrameMs": 6.2,
+        "averageFps": 165.08,
+        "framesOver25Ms": 0,
+        "longestRunOver25Ms": 0
+      },
+      "renderer": {
+        "calls": 50,
+        "triangles": 43360,
+        "geometries": 121,
+        "textures": 7
+      }
+    },
+    {
+      "id": "caldera-throat",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "sampleDurationMs": 8401.4,
+      "timing": {
+        "averageFrameMs": 6.057,
+        "p50FrameMs": 6.1,
+        "p95FrameMs": 6.2,
+        "p99FrameMs": 6.2,
+        "averageFps": 165.09,
+        "framesOver25Ms": 0,
+        "longestRunOver25Ms": 0
+      },
+      "renderer": {
+        "calls": 48,
+        "triangles": 45280,
+        "geometries": 121,
+        "textures": 7
+      }
+    },
+    {
+      "id": "storm-needle",
+      "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5060 Laptop GPU (0x00002D59) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "sampleDurationMs": 8402.5,
+      "timing": {
+        "averageFrameMs": 6.058,
+        "p50FrameMs": 6.1,
+        "p95FrameMs": 6.2,
+        "p99FrameMs": 6.2,
+        "averageFps": 165.07,
+        "framesOver25Ms": 0,
+        "longestRunOver25Ms": 0
+      },
+      "renderer": {
+        "calls": 48,
+        "triangles": 43358,
+        "geometries": 123,
+        "textures": 7
+      }
+    }
+  ],
+  "limitations": [
+    "P0 experimental maps are local only",
+    "No public deployment",
+    "Mobile viewport emulation is not physical-device validation",
+    "Performance samples cover 8.4 seconds per course, not worst-case or long-duration play",
+    "Tidal, moving-ship and flight maps remain design-only"
+  ]
+}

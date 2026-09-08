@@ -64,7 +64,7 @@ export class OnlineSimulation {
       active.push(boat);
     }
     if (racing) this.collisions.resolve(active, this.track);
-    this.interactions.update(SIMULATION_STEP, active.filter((boat) => !this.race.getState(boat.id).finished), racing);
+    this.interactions.update(SIMULATION_STEP, active.filter((boat) => !this.race.getState(boat.id).finished), racing, id => this.race.getState(id).lap);
     this.race.update(SIMULATION_STEP, active.map((boat) => ({
       id: boat.id, position: boat.group.position, velocity: boat.velocity,
     })), this.track);

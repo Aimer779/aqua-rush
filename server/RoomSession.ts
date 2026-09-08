@@ -1,7 +1,7 @@
 import { OnlineSimulation, type AppliedInput } from '../src/shared/OnlineSimulation';
 import { MAX_PLAYERS, NEUTRAL_INPUT, RECONNECT_MS, SIMULATION_STEP,
   type ClientMessage, type RoomPlayer, type RoomSnapshot, type RoomPhase } from '../src/shared/OnlineProtocol';
-import type { TrackId } from '../src/game/ContentCatalog';
+import { isOnlineTrackId, type TrackId } from '../src/game/ContentCatalog';
 
 type Member = RoomPlayer & {
   token: string;
@@ -71,6 +71,7 @@ export class RoomSession {
         member.ready = message.ready;
         return null;
       case 'track':
+        if (!isOnlineTrackId(message.trackId)) return 'Course unavailable online.';
         if (id !== this.hostId || this.phase !== 'lobby') return 'Only the host can choose a course in the lobby.';
         if (this.trackId === message.trackId) return null;
         this.trackId = message.trackId;

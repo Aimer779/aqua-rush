@@ -1,4 +1,4 @@
-import type { RaceMode, TrackId } from './ContentCatalog';
+import { TRACK_IDS, isTrackId, type RaceMode, type TrackId } from './ContentCatalog';
 
 export const SAVE_SCHEMA_VERSION = 1 as const;
 export const SAVE_STORAGE_KEY = 'aqua-rush-v3';
@@ -31,10 +31,7 @@ const defaults = (): SaveData => ({
   version: SAVE_SCHEMA_VERSION,
   settings: { muted: false, reducedMotion: false },
   lastSelection: { mode: 'quick-race', trackId: 'sunset-circuit' },
-  timeTrial: {
-    'sunset-circuit': { bestLap: null, bestTotal: null },
-    'storm-reef': { bestLap: null, bestTotal: null },
-  },
+  timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, { bestLap: null, bestTotal: null }])) as SaveData['timeTrial'],
 });
 
 function positiveTime(value: unknown): number | null {
@@ -64,9 +61,7 @@ export class SaveStore {
       if (parsed.version !== SAVE_SCHEMA_VERSION) repaired = true;
       {
         const mode = parsed.lastSelection?.mode === 'time-trial' ? 'time-trial' : 'quick-race';
-        const trackId = parsed.lastSelection?.trackId === 'storm-reef' ? 'storm-reef' : 'sunset-circuit';
-        const sunset = parsed.timeTrial?.['sunset-circuit'];
-        const storm = parsed.timeTrial?.['storm-reef'];
+        const trackId = isTrackId(parsed.lastSelection?.trackId) ? parsed.lastSelection.trackId : 'sunset-circuit';
         this.data = {
           version: SAVE_SCHEMA_VERSION,
           settings: {
@@ -74,10 +69,10 @@ export class SaveStore {
             reducedMotion: Boolean(parsed.settings?.reducedMotion),
           },
           lastSelection: { mode, trackId },
-          timeTrial: {
-            'sunset-circuit': { bestLap: positiveTime(sunset?.bestLap), bestTotal: positiveTime(sunset?.bestTotal) },
-            'storm-reef': { bestLap: positiveTime(storm?.bestLap), bestTotal: positiveTime(storm?.bestTotal) },
-          },
+          timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, {
+            bestLap: positiveTime(parsed.timeTrial?.[id]?.bestLap),
+            bestTotal: positiveTime(parsed.timeTrial?.[id]?.bestTotal),
+          }])) as SaveData['timeTrial'],
         };
       }
     } catch {
@@ -109,8 +104,8 @@ export class SaveStore {
 
   recordTimeTrial(trackId: TrackId, bestLap: number, total: number): { newLapRecord: boolean; newTotalRecord: boolean } {
     const record = this.data.timeTrial[trackId];
-    const newLapRecord = bestLap > 0 && (record.bestLap === null || bestLap < record.bestLap);
-    const newTotalRecord = total > 0 && (record.bestTotal === null || total < record.bestTotal);
+    const newLapRecord = Number.isFinite(bestLap) && bestLap > 0 && (record.bestLap === null || bestLap < record.bestLap);
+    const newTotalRecord = Number.isFinite(total) && total > 0 && (record.bestTotal === null || total < record.bestTotal);
     if (newLapRecord) record.bestLap = bestLap;
     if (newTotalRecord) record.bestTotal = total;
     if (newLapRecord || newTotalRecord) this.flush();

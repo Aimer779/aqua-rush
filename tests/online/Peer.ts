@@ -1,3 +1,4 @@
+import { PROTOCOL_VERSION } from '../../src/shared/OnlineProtocol';
 import type { ClientMessage, ServerMessage } from '../../src/shared/OnlineProtocol';
 
 export class Peer {
@@ -10,7 +11,7 @@ export class Peer {
     const url = new URL(`/api/rooms/${code}`, baseURL);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     this.socket = new WebSocket(url);
-    this.socket.addEventListener('open', () => this.send({ type: 'join', version: 1, name, token }));
+    this.socket.addEventListener('open', () => this.send({ type: 'join', version: PROTOCOL_VERSION, name, token }));
     this.socket.addEventListener('message', (event: MessageEvent<string>) => {
       const message = JSON.parse(event.data) as ServerMessage;
       this.history.push(message);

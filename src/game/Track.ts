@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { landmarkFootprints } from './LandmarkFootprints';
 import { getTrackDefinition, type CheckpointDefinition, type TrackDefinition } from './ContentCatalog';
 
 export type TrackProjection = {
@@ -88,12 +89,23 @@ export class RaceTrack {
       const right = normal.clone().cross(WORLD_UP).normalize();
       return { definition: checkpoint, center, normal, right, halfWidth: checkpoint.halfWidth, height: checkpoint.height };
     });
-    this.rocks = definition.rocks.map((rock) => ({
+    const rocks = definition.rocks.map((rock) => ({
       id: rock.id,
       center: this.getOffsetPoint(rock.progress, rock.lateralOffset),
       radius: rock.radius,
       height: rock.height,
     }));
+    for (const spec of definition.landmarks) {
+      if (!spec.kind) continue;
+      const origin = this.getOffsetPoint(spec.progress, spec.lateralOffset);
+      const tangent = this.getTangentAt(spec.progress), right = this.getRightAt(spec.progress);
+      landmarkFootprints(spec.kind).forEach((footprint, index) => rocks.push({
+        id: `landmark:${spec.id}:${index}`,
+        center: origin.clone().addScaledVector(right, footprint.x).addScaledVector(tangent, -footprint.z),
+        radius: footprint.radius, height: footprint.height,
+      }));
+    }
+    this.rocks = rocks;
   }
 
   wrapProgress(progress: number): number {
