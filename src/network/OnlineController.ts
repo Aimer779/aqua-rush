@@ -76,6 +76,7 @@ export class OnlineController {
       window.__AQUA_ONLINE__.connected = this.connection.connected;
       window.__AQUA_ONLINE__.rtt = this.connection.rtt;
       window.__AQUA_ONLINE__.correction = this.prediction?.correction ?? 0;
+      window.__AQUA_ONLINE__.interpolation = this.prediction?.interpolation.diagnostics(performance.now()) ?? null;
     }
   }
 
@@ -111,7 +112,9 @@ export class OnlineController {
     } else this.prediction?.receive(snapshot.race);
     this.view.snapshot(snapshot);
     this.lobby.update(snapshot, this.connection.playerId, this.connection.connected, this.connection.rtt);
-    window.__AQUA_ONLINE__ = { state: snapshot, connected: this.connection.connected, rtt: this.connection.rtt, correction: this.prediction?.correction ?? 0 };
+    window.__AQUA_ONLINE__ = { state: snapshot, connected: this.connection.connected, rtt: this.connection.rtt,
+      correction: this.prediction?.correction ?? 0,
+      interpolation: this.prediction?.interpolation.diagnostics(performance.now()) ?? null };
     if (snapshot.phase === 'loading' && snapshot.matchId !== this.loadedMatch) {
       this.loadedMatch = snapshot.matchId;
       requestAnimationFrame(() => {
