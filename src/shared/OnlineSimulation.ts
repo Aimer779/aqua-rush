@@ -39,7 +39,7 @@ export class OnlineSimulation {
     const currents = new CurrentField(this.track);
     for (const player of players) {
       const boat = new ArcadeBoat(player.id, '#ffcc32', null);
-      boat.currentField = currents;
+      boat.currentField = currents; boat.worldMechanics = this.track.mechanics;
       const slot = definition.spawnGrid[player.slot];
       const position = this.track.getOffsetPoint(slot.progress, slot.lane);
       boat.reset(position, this.track.headingAt(slot.progress));
@@ -66,7 +66,7 @@ export class OnlineSimulation {
       boat.updateWaterPose(SIMULATION_STEP, this.elapsed, this.waves);
       active.push(boat);
     }
-    if (racing) this.collisions.resolve(active, this.track);
+    if (racing) this.collisions.resolve(active, this.track, this.elapsed);
     this.interactions.update(SIMULATION_STEP, active.filter((boat) => !this.race.getState(boat.id).finished), racing, id => this.race.getState(id).lap);
     this.race.update(SIMULATION_STEP, active.map((boat) => ({
       id: boat.id, position: boat.group.position, velocity: boat.velocity,

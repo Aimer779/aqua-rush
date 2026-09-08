@@ -1,3 +1,4 @@
+import type { RaceTrack } from '../game/Track';
 import { TRACK_IDS, getTrackDefinition, type TrackId } from '../game/ContentCatalog';
 export type RaceHudState = {
   /** World speed; defaults to converting units/s to km/h with speedScale=3.6. */
@@ -174,6 +175,8 @@ export class Hud {
   private readonly courseModeLabel = this.getElement('#course-mode-label');
   private readonly courseButtons = this.createCourseCards();
   private readonly courseFeature = this.createCourseFeature();
+  private readonly minimap = this.createMinimap();
+  private coursePreviewHandler: ((id: TrackId) => void) | null = null;
 
   private restartHandler: (() => void) | null = null;
   private pauseHandler: (() => void) | null = null;
@@ -208,8 +211,9 @@ export class Hud {
     this.courseBackButton.addEventListener('click', this.handleCourseBack);
     for (const [id, button] of this.courseButtons) button.onclick = () => {
       this.selectCourseCard(id);
-      this.courseSelectHandler?.(id);
+      this.coursePreviewHandler?.(id);
     };
+    this.getElement<HTMLButtonElement>('#course-race-button').onclick = () => this.courseSelectHandler?.(this.getSelectedCourseButton().dataset.track as TrackId);
     this.recoveryButton.addEventListener('click', this.handleRecovery);
     this.pauseMenuButton.addEventListener('click', this.handleMenu);
     this.resultsMenuButton.addEventListener('click', this.handleMenu);
@@ -319,7 +323,7 @@ export class Hud {
     document.body.dataset.uiState = state;
 
     this.titleStartButton.disabled = state === 'loading';
-    this.titleStartButton.textContent = state === 'loading' ? 'Loading…' : 'Start racing';
+    this.titleStartButton.textContent = state === 'loading' ? '正在准备海面…' : '开始竞速 ↗';
     if (!visible) return;
     const focusTarget = state === 'title'
       ? this.titleStartButton
@@ -334,7 +338,7 @@ export class Hud {
   showCourseSelect(view: HudCourseSelectView = { mode: 'quick-race' }): void {
     this.courseModeLabel.textContent = modeLabel(view.mode);
     for (const course of view.courses ?? []) this.updateCourseCard(course);
-    this.selectCourseCard(view.selectedTrack ?? 'sunset-circuit');
+    this.selectCourseCard(view.selectedTrack ?? 'breakwater');
     this.showFlow('track-select');
   }
 
@@ -395,6 +399,8 @@ export class Hud {
   onMute(handler: (() => void) | null): void { this.muteHandler = handler; }
   onStart(handler: (() => void) | null): void { this.startHandler = handler; }
   onModeSelect(handler: ((mode: HudRaceMode) => void) | null): void { this.modeSelectHandler = handler; }
+  onCoursePreview(handler: (id: TrackId) => void): void { this.coursePreviewHandler = handler; }
+
   onCourseSelect(handler: ((trackId: HudTrackId) => void) | null): void { this.courseSelectHandler = handler; }
   onBack(handler: ((from: 'mode-select' | 'track-select') => void) | null): void { this.backHandler = handler; }
   onRecovery(handler: (() => void) | null): void { this.recoveryHandler = handler; }
@@ -471,6 +477,24 @@ export class Hud {
     this.otherCourseHandler = null;
   }
 
+  private createMinimap(): SVGSVGElement {
+    const map = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    map.id = 'race-minimap'; map.setAttribute('viewBox', '-200 -200 400 400');
+    map.setAttribute('aria-label', '赛道小地图');
+    this.root.append(map); return map;
+  }
+
+  setMinimap(track: RaceTrack): void {
+    const points = track.points.filter((_, i) => i % 8 === 0).map(p => p.x + ',' + p.z).join(' ');
+    this.minimap.innerHTML = '<polygon points="' + points + '"/><circle class="map-target" r="7"/><circle class="map-player" r="8"/>';
+  }
+
+  updateMinimap(x: number, z: number, targetX: number, targetZ: number): void {
+    const player = this.minimap.querySelector('.map-player'), target = this.minimap.querySelector('.map-target');
+    player?.setAttribute('cx', String(x)); player?.setAttribute('cy', String(z));
+    target?.setAttribute('cx', String(targetX)); target?.setAttribute('cy', String(targetZ));
+  }
+
   private createCourseFeature(): HTMLElement {
     const root = document.createElement('div');
     root.id = 'course-feature';
@@ -494,7 +518,7 @@ export class Hud {
     template.className = 'selection-card course-card';
     template.innerHTML = '<span class="course-art" aria-hidden="true"></span><span class="selection-copy"><span class="course-meta"><em></em><i></i></span><strong></strong><small></small><span class="course-record"><i>Best total</i><b></b></span></span>';
     const buttons = new Map<TrackId, HTMLButtonElement>();
-    for (const id of ['neon-leviathan', ...TRACK_IDS.filter(id => id !== 'neon-leviathan')] as TrackId[]) {
+    for (const id of TRACK_IDS) {
       const definition = getTrackDefinition(id);
       const button = template.cloneNode(true) as HTMLButtonElement;
       button.id = 'course-' + id + '-button';
@@ -522,12 +546,19 @@ export class Hud {
     button.querySelector('strong')!.textContent = course.displayName ?? course.name ?? definition.name;
     button.querySelector('.selection-copy > small')!.textContent = course.description ?? definition.description;
     button.querySelector('.course-meta em')!.textContent = course.difficulty ?? definition.difficulty;
-    button.querySelector('.course-meta i')!.textContent = definition.id === 'neon-leviathan' ? 'NEW · 路线抉择 / 借流' : definition.experimental ? 'Experimental · Local' : (course.environmentLabel ?? '');
+    button.querySelector('.course-meta i')!.textContent = definition.subtitle;
     button.querySelector('.course-record i')!.textContent = definition.rulesRevision ? 'Best total · V' + definition.rulesRevision : 'Best total';
     button.querySelector('.course-record b')!.textContent = formatOptionalTime(course.bestTotal);
   }
 
   private selectCourseCard(trackId: HudTrackId): void {
+    const definition = getTrackDefinition(trackId);
+    document.body.dataset.world = trackId;
+    this.getElement('#course-subtitle').textContent = definition.subtitle;
+    this.getElement('#course-display-name').textContent = definition.name;
+    this.getElement('#course-description').textContent = definition.description;
+    this.getElement('#course-mechanics').textContent = definition.id === 'nightfall' ? '读灯穿闸   /   楼间追逐   /   地铁飞跃'
+      : definition.id === 'sunken-temple' ? '巨石拱门   /   旋流借力   /   遗迹飞跃' : '飞越堤墙   /   外侧绕行   /   落水增压';
     for (const [id, button] of this.courseButtons) {
       const selected = id === trackId;
       button.classList.toggle('is-selected', selected);
@@ -537,7 +568,7 @@ export class Hud {
 
   private getSelectedCourseButton(): HTMLButtonElement {
     return [...this.courseButtons.values()].find(button => button.getAttribute('aria-pressed') === 'true')
-      ?? this.courseButtons.get('sunset-circuit')!;
+      ?? this.courseButtons.get('breakwater')!;
   }
 
   private visibleModal(): HTMLElement | null {

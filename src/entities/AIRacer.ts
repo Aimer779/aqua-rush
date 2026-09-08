@@ -82,6 +82,15 @@ export class AIRacer extends ArcadeBoat {
     const expectedCheckpoint = track.getCheckpoint(nextCheckpointIndex);
     const checkpointDelta = (expectedCheckpoint.definition.progress - projection.progress + 1) % 1;
     if (checkpointDelta * track.length < 45) this.target.copy(expectedCheckpoint.center).addScaledVector(expectedCheckpoint.normal, 4);
+    // A missed/slow jump takes the visible water bypass instead of pushing into the low wall.
+    for (const block of track.mechanics.blocks) {
+      if (!block.onRoute || this.flightActive || this.speed > 14) continue;
+      this.toOther.copy(block.center).sub(this.group.position).setY(0);
+      const ahead = this.toOther.dot(block.forward), lateral = this.toOther.dot(block.right);
+      if (ahead > -2 && ahead < 22 && Math.abs(lateral) < block.width / 2 + 2) {
+        this.target.copy(block.center).addScaledVector(block.right, (desiredLane < 0 ? -1 : 1) * (block.width / 2 + 4)).addScaledVector(block.forward, -4);
+      }
+    }
     this.toTarget.copy(this.target).sub(this.group.position).setY(0);
     const desiredHeading = Math.atan2(this.toTarget.x, -this.toTarget.z);
     const headingError = Math.atan2(Math.sin(desiredHeading - this.heading), Math.cos(desiredHeading - this.heading));

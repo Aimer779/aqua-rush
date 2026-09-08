@@ -32,7 +32,7 @@ for (const opponents of [1, 3]) test(`${opponents} opponents render smoothly wit
   await expect(page.locator('#online-room-code')).toHaveText(/^[A-HJ-NP-Z2-9]{8}$/);
   const code = await page.locator('#online-room-code').innerText();
   const peers: Peer[] = [];
-  const track = new RaceTrack(getTrackDefinition('sunset-circuit'));
+  const track = new RaceTrack(getTrackDefinition('breakwater'));
   try {
     for (let slot = 1; slot <= opponents; slot++) {
       const peer = new Peer(baseURL!, code, `Moving opponent ${slot}`);

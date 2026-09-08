@@ -30,6 +30,7 @@ interface DiagnosticRacer {
   driftQuality: number;
   contact: number;
   airborne: boolean;
+  flightActive?: boolean; flightTime?: number; jumps?: number;
   landingIntensity: number;
   steering: number;
   throttle: number;

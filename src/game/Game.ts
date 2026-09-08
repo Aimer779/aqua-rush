@@ -76,7 +76,7 @@ export class Game {
   private saveData!: SaveData;
   private saveAvailable = true;
   private readonly flow = new GameFlow();
-  private config: RaceConfig = makeRaceConfig('quick-race', 'sunset-circuit');
+  private config: RaceConfig = makeRaceConfig('quick-race', 'breakwater');
   private readonly tuning: DebugTuning = {
     ...DEFAULT_PLAYER_TUNING,
     ...DEFAULT_CAMERA_TUNING,
@@ -260,9 +260,10 @@ export class Game {
     if (!this.paused) this.elapsed += delta;
     const visualElapsed = this.reducedMotion ? 0 : this.elapsed;
     this.ocean.update(this.elapsed, this.player.group.position);
-    this.course.update(visualElapsed, this.camera.position);
+    this.course.update(visualElapsed, this.camera.position, this.elapsed);
 
     if (this.isMenuFlow()) {
+      this.updateMenuPreview(delta);
       this.guide.root.visible = false;
       this.navigationBeacon.root.visible = false;
       this.publishDiagnostics();
@@ -297,7 +298,7 @@ export class Game {
       );
     }
 
-    this.collisionFrame = canRace ? this.collision.resolve(this.activeBoats, this.track) : { count: 0, strongest: 0 };
+    this.collisionFrame = canRace ? this.collision.resolve(this.activeBoats, this.track, this.elapsed) : { count: 0, strongest: 0 };
     this.handleCollisions();
     this.interactions.update(delta, this.activeBoats.filter(boat => !this.race.getState(boat.id).finished), canRace, id => this.race.getState(id).lap);
     this.handleInteractionEvents(this.interactions.consumeEvents());
@@ -308,6 +309,17 @@ export class Game {
     this.updatePresentation(delta, visualElapsed);
     this.updateHud();
     this.publishDiagnostics();
+  }
+
+  private updateMenuPreview(delta: number): void {
+    const focus = this.track.getPointAt(.22);
+    const angle = this.reducedMotion ? .6 : .6 + Math.sin(this.elapsed * .08) * .25;
+    this.camera.position.set(focus.x + Math.cos(angle) * 130, 80, focus.z + Math.sin(angle) * 120);
+    this.camera.lookAt(focus.x - 10, 6, focus.z);
+    this.camera.fov = 52; this.camera.updateProjectionMatrix();
+    this.courseFeatures.update(this.elapsed, this.reducedMotion);
+    for (const boat of this.activeBoats) boat.updateWaterPose(delta, this.elapsed, this.waves);
+    this.ocean.update(this.elapsed, focus);
   }
 
   private render(): void {
@@ -424,8 +436,9 @@ export class Game {
     this.disposeTrackVisuals();
     const definition = getTrackDefinition(trackId);
     this.track = new RaceTrack(definition);
+    this.hud.setMinimap(this.track);
     const currents = new CurrentField(this.track);
-    for (const boat of this.allBoats) boat.currentField = currents;
+    for (const boat of this.allBoats) { boat.currentField = currents; boat.worldMechanics = this.track.mechanics; }
     this.waves = new WaveSurface(definition.waves.waves);
     this.ocean = new OceanVisual(this.waves, { nearSize: 280, nearSegments: 96, midSize: 680, midSegments: 32, farSize: 1200, farSegments: 12 });
     this.ocean.applyEnvironment({
@@ -555,7 +568,7 @@ export class Game {
       this.vfx.updateBoatWake(boat.id, {
         position: boat.group.position,
         forward: this.forward,
-        speed: Math.abs(boat.speed),
+        speed: boat.flightActive ? 0 : Math.abs(boat.speed),
         boost: boat.boosting ? 1 : 0,
         drift: boat.drifting ? Math.max(0.35, boat.driftQuality) : 0,
       }, delta);
@@ -689,11 +702,18 @@ export class Game {
               : this.player.ordinaryBoosting
                 ? 'BOOSTING!'
                 : 'FOLLOW THE FLOW';
-    const features = this.track.definition.routes;
     const currentStrength = this.player.waterCurrent.length();
-    const option = features?.find(route => projection.progress >= route.anchors[0][0] - .045 && projection.progress <= route.anchors.at(-1)![0]);
-    this.hud.updateCourseFeature(features ? (currentStrength > 1 ? '借流中 · 修正船头，顺流出弯' : option ? (option.kind === 'safe' ? '船腹双门 / 外侧绕行' : option.label) : '霓虹港 / 船腹抢线 · 漩流弹射') : '',
-      currentStrength > 1 ? '水流正在改变你的速度与方向 · 外侧主航线可绕行' : option?.kind === 'safe' ? '金色穿船腹取双门 · 蓝色宽水面绕船' : option?.hint ?? '金色抢门 · 蓝色绕船 · 紫色借流');
+    const nextRamp = this.track.mechanics.ramps.find(ramp => this.track.forwardDistance(projection.progress, ramp.progress) < .075);
+    const nextLock = this.track.definition.shutters?.find(lock => this.track.forwardDistance(projection.progress, lock.progress) < .07);
+    const title = this.player.flightActive ? 'AIRTIME / ' + this.player.flightTime.toFixed(1) + ' s'
+      : this.player.flightCooldown > .3 ? '落水接力 / BOOST'
+      : currentStrength > 1 ? '借流中 / 顺着水纹出弯'
+      : nextRamp ? '前方跳台 / 稳住船头'
+      : nextLock ? '前方闸门 / 看灯，选线' : '';
+    this.hud.updateCourseFeature(title, this.player.flightActive ? '空中可微调方向，准备落水'
+      : currentStrength > 1 ? '提前反打修正，外侧可绕行' : nextRamp ? '保持速度飞越堤墙；低速走外侧' : '绿色窗口更宽，橙色窗口收窄');
+    const mapTarget = this.track.getCheckpoint(state.nextCheckpoint).center;
+    this.hud.updateMinimap(this.player.group.position.x, this.player.group.position.z, mapTarget.x, mapTarget.z);
     this.hud.updateRace({
       speed: Math.max(0, currentStrength > 0 ? this.player.velocity.length() : this.player.speed),
       lap: state.displayLap,
@@ -803,6 +823,10 @@ export class Game {
       this.flow.selectMode(mode);
       this.showCourseSelection(mode, this.config.trackId);
     });
+    this.hud.onCoursePreview(id => {
+      this.flow.selectTrack(id); this.configureTrack(id);
+      this.allBoats.forEach((boat, i) => { const slot = this.track.definition.spawnGrid[i]; boat.reset(this.track.getOffsetPoint(slot.progress, slot.lane), this.track.headingAt(slot.progress)); });
+    });
     this.hud.onCourseSelect((trackId) => this.startSession(this.flow.snapshot.mode, trackId));
     this.hud.onBack((from) => this.setFlow(from === 'track-select' ? 'mode-select' : 'title'));
     this.hud.onRecovery(() => this.recoverPlayer('explicit'));
@@ -856,7 +880,7 @@ export class Game {
     window.__THREE_GAME_TEST_HOOKS__ = {
       seed: (value: number) => { void this.rng; this.vfx.seed(value); },
       setState: (name) => {
-        this.startSession('quick-race', 'sunset-circuit');
+        this.startSession('quick-race', 'breakwater');
         if (name === 'active-play') {
           this.collectRacerFrames();
           this.race.startImmediately(this.racerFrames, this.track);
@@ -916,9 +940,8 @@ export class Game {
     const playerState = this.race.getState(this.player.id);
     const targetCheckpoint = this.track.getCheckpoint(playerState.nextCheckpoint);
     this.nextCheckpointPosition.copy(targetCheckpoint.center);
-    // Diagnostics expose the next legal sector as the robust automation look-ahead;
-    // the visible guide remains the authored curved line.
-    this.playerLookAheadPosition.copy(targetCheckpoint.center);
+    // Look ahead along the visible guide: aiming directly at a distant sector can cut through a bank.
+    this.track.getDrivingTarget(this.player.group.position, playerState.nextCheckpoint, this.player.speed, this.playerLookAheadPosition);
     const racers = this.race.getAllStates().map((state) => {
       const boat = this.activeBoats.find((candidate) => candidate.id === state.id);
       if (!boat) throw new Error(`Missing boat for racer ${state.id}`);
@@ -940,6 +963,7 @@ export class Game {
         driftQuality: boat.driftQuality,
         contact: boat.contact,
         airborne: boat.airborne,
+        flightActive: boat.flightActive, flightTime: boat.flightTime, jumps: boat.jumps,
         landingIntensity: boat.landingIntensity,
         steering: boat.steering,
         throttle: boat.throttle,

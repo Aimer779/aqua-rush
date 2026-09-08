@@ -1,3 +1,4 @@
+import type { WorldMechanics } from '../game/WorldMechanics';
 import type { CurrentField } from '../game/CurrentField';
 import * as THREE from 'three';
 import type { RaceIntent } from '../shared/RaceIntent';
@@ -57,6 +58,13 @@ export type WaveHandlingState = {
 
 export class ArcadeBoat {
   currentField: CurrentField | null = null;
+  worldMechanics: WorldMechanics | null = null;
+  flightActive = false;
+  flightTime = 0;
+  flightCooldown = 0;
+  jumps = 0;
+  private readonly flightEuler = new THREE.Euler();
+  private readonly rampDelta = new THREE.Vector3();
   readonly waterCurrent = new THREE.Vector3();
   readonly previousPosition = new THREE.Vector3();
   private static readonly activeBoats = new Set<ArcadeBoat>();
@@ -237,9 +245,48 @@ export class ArcadeBoat {
     const forwardSlope = (bowHeight - sternHeight) / (bowDistance * 2);
     const crossSlope = (starboardHeight - portHeight) / (halfBeam * 2);
 
-    const wasAirborne = this.airborne;
+    const wasAirborne = this.airborne && !this.flightActive;
     const descentSpeed = Math.max(0, -this.verticalVelocity);
     const dt = Math.min(delta, 0.05);
+    this.flightCooldown = Math.max(0, this.flightCooldown - dt);
+    if (this.flightActive) {
+      this.flightTime += dt;
+      this.verticalVelocity -= 16 * dt;
+      this.group.position.y += this.verticalVelocity * dt;
+      if (this.group.position.y <= targetWaterY && this.verticalVelocity < 0) {
+        this.flightActive = false; this.airborne = false;
+        this.group.position.y = targetWaterY; this.verticalVelocity = 0;
+        this.landingIntensity = .9; this.flightCooldown = 1.2; this.jumps++;
+        this.grantMiniBoost(.55);
+      } else {
+        this.contact = 0; this.airborne = true;
+        this.waveHandling.alongAcceleration = this.waveHandling.lateralAcceleration = 0;
+        this.waveHandling.steeringAuthority = .7; this.waveHandling.gripScale = .3;
+        this.group.quaternion.setFromEuler(this.flightEuler.set(Math.atan2(this.verticalVelocity, Math.max(8, Math.abs(this.speed))), -this.heading, -this.currentSteer * .08));
+        return;
+      }
+    }
+    if (!this.flightActive && this.flightCooldown === 0) for (const ramp of this.worldMechanics?.ramps ?? []) {
+      this.rampDelta.copy(this.group.position).sub(ramp.center);
+      const along = this.rampDelta.dot(ramp.forward), across = this.rampDelta.dot(ramp.right);
+      const previousAlong = this.rampDelta.copy(this.previousPosition).sub(ramp.center).dot(ramp.forward);
+      if (Math.abs(across) > ramp.width / 2) continue;
+      if (along >= -ramp.length / 2 && along <= ramp.length / 2) {
+        const height = (along / ramp.length + .5) * ramp.height + .42;
+        this.group.position.y = Math.max(targetWaterY, height);
+        this.verticalVelocity = 0; this.contact = 1; this.airborne = false;
+        this.waveHandling.alongAcceleration = this.waveHandling.lateralAcceleration = 0;
+        this.waveHandling.steeringAuthority = this.waveHandling.gripScale = 1;
+        this.group.quaternion.setFromEuler(this.flightEuler.set(Math.atan2(ramp.height, ramp.length), -this.heading, 0));
+        return;
+      }
+      if (previousAlong <= ramp.length / 2 && previousAlong >= -ramp.length / 2 && along > ramp.length / 2 && this.velocity.dot(ramp.forward) > 1) {
+        this.flightActive = true; this.flightTime = 0; this.airborne = true; this.contact = 0;
+        this.group.position.y = Math.max(targetWaterY, ramp.height + .42);
+        this.verticalVelocity = ramp.launch * Math.min(1, Math.max(.15, this.speed / 18));
+        return;
+      }
+    }
     if (delta > 0.15 || !Number.isFinite(this.group.position.y)) {
       this.group.position.y = targetWaterY;
       this.verticalVelocity = 0;
@@ -374,6 +421,7 @@ export class ArcadeBoat {
     this.group.position.copy(position);
     this.previousPosition.copy(position);
     this.heading = heading;
+    this.flightActive = false; this.flightTime = 0; this.flightCooldown = 0; this.jumps = 0;
     this.speed = 0;
     this.velocity.set(0, 0, 0);
     this.waterCurrent.set(0, 0, 0);

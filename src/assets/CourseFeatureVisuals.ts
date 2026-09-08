@@ -34,11 +34,7 @@ export class CourseFeatureVisuals {
         return { point: curve.getPointAt(i / count), heading: Math.atan2(tangent.x, -tangent.z) };
       });
       this.addBatch(geometry, COLORS[route.kind], markers);
-      const [progress, offset] = route.anchors[0];
-      const sign = this.sign(route.label, route.kind === 'safe' ? 'WIDE WATER / NO REWARD' : route.kind === 'risk' ? 'TWO BOOST GATES / TIGHT LINE' : 'FOLLOW THE ARROWS / COUNTERSTEER', COLORS[route.kind]);
-      sign.position.copy(track.getOffsetPoint(progress, offset + (route.kind === 'safe' ? 16 : -15))).setY(8.5);
-      sign.rotation.y = -track.headingAt(progress);
-      this.root.add(sign);
+
     }
     this.currents.zones.forEach((zone, zoneIndex) => {
       const markers: Marker[] = [];
@@ -100,16 +96,4 @@ export class CourseFeatureVisuals {
     this.root.add(mesh);
   }
 
-  private sign(title: string, detail: string, color: number): THREE.Mesh {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024; canvas.height = 256;
-    const context = canvas.getContext('2d')!;
-    context.fillStyle = '#0b192d'; context.fillRect(0, 0, 1024, 256);
-    context.strokeStyle = '#' + color.toString(16).padStart(6, '0'); context.lineWidth = 12; context.strokeRect(6, 6, 1012, 244);
-    context.fillStyle = context.strokeStyle;
-    context.font = 'bold 60px sans-serif'; context.textAlign = 'center'; context.fillText(title, 512, 107);
-    context.fillStyle = '#e9fbff'; context.font = '28px sans-serif'; context.fillText(detail, 512, 184);
-    const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-    return new THREE.Mesh(new THREE.PlaneGeometry(24, 6), new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, toneMapped: false }));
-  }
 }

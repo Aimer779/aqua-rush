@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import * as THREE from 'three';
 import { RaceTrack } from '../src/game/Track';
-import { getTrackDefinition } from '../src/game/ContentCatalog';
+import { getTrackDefinition, TRACK_IDS, type TrackId } from '../src/game/ContentCatalog';
 import { CurrentField } from '../src/game/CurrentField';
 import { routeCurve } from '../src/game/RouteOptions';
 import { ArcadeBoat, DEFAULT_PLAYER_TUNING } from '../src/entities/ArcadeBoat';
@@ -9,7 +9,7 @@ import { CollisionSystem } from '../src/systems/CollisionSystem';
 import { WaveSurface } from '../src/systems/WaveSurface';
 
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop-chrome', 'Shared physics only needs one runtime.'));
-const track = () => new RaceTrack(getTrackDefinition('neon-leviathan'));
+const track = () => new RaceTrack(getTrackDefinition('sunken-temple'));
 
 test('flow is bounded, tangential and smooth at both edges with an escapable core', () => {
   const field = new CurrentField(track()), zone = field.zones[0];
@@ -74,12 +74,13 @@ test('all optional lines have physical clearance and cross each encountered sect
   }
 });
 
-function driveRoute(id: string, currents: boolean) {
-  const course = track(), route = course.definition.routes!.find(r => r.id === id)!;
+function driveRoute(id: string, currents: boolean, courseId: TrackId = 'sunken-temple') {
+  const course = new RaceTrack(getTrackDefinition(courseId)), route = course.definition.routes!.find(r => r.id === id)!;
   const curve = routeCurve(course, route), points = curve.getSpacedPoints(300);
   const boat = new ArcadeBoat('pilot', 'white', null);
   const waves = new WaveSurface(course.definition.waves.waves), collisions = new CollisionSystem();
   boat.currentField = currents ? new CurrentField(course) : null;
+  boat.worldMechanics = course.mechanics;
   const tangent = curve.getTangentAt(0);
   boat.reset(points[0], Math.atan2(tangent.x, -tangent.z));
   boat.speed = 20; boat.velocity.copy(tangent).multiplyScalar(20);
@@ -94,7 +95,7 @@ function driveRoute(id: string, currents: boolean) {
       const error = Math.atan2(Math.sin(angle), Math.cos(angle));
       boat.drive(1 / 60, { throttle: Math.abs(error) > .7 && boat.speed > 9 ? -.25 : 1, steer: THREE.MathUtils.clamp(error * 2, -1, 1), boost: false }, DEFAULT_PLAYER_TUNING, true);
       boat.updateWaterPose(1 / 60, time, waves);
-      contacts += collisions.resolve([boat], course).count;
+      contacts += collisions.resolve([boat], course, time).count;
       maxFlow = Math.max(maxFlow, boat.waterCurrent.length());
       time += 1 / 60;
     }
@@ -102,17 +103,18 @@ function driveRoute(id: string, currents: boolean) {
   } finally { boat.dispose(); }
 }
 
-test('ordinary steering completes both hull and bypass lines without collision or teleport', () => {
-  for (const id of ['harbor-bypass', 'harbor-hull']) {
-    const result = driveRoute(id, true);
-    expect(result.contacts, JSON.stringify({ id, ...result })).toBe(0);
+test('ordinary steering completes every marked water bypass without collision or teleport', () => {
+  for (const courseId of TRACK_IDS) for (const route of getTrackDefinition(courseId).routes ?? []) {
+    if (route.kind !== 'safe') continue;
+    const result = driveRoute(route.id, true, courseId);
+    expect(result.contacts, JSON.stringify({ id: route.id, ...result })).toBe(0);
     expect(result.distance).toBeLessThan(4);
     expect(result.time).toBeLessThan(20);
   }
 });
 
 test('following the current line produces a measurable advantage over the same line without flow', () => {
-  const flow = driveRoute('harbor-current', true), still = driveRoute('harbor-current', false);
+  const flow = driveRoute('temple-current', true), still = driveRoute('temple-current', false);
   console.log('Current line comparison:', { flow, still, saved: still.time - flow.time });
   expect(flow.maxFlow).toBeGreaterThan(6);
   expect(flow.distance).toBeLessThan(4);

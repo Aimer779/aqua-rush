@@ -1,6 +1,6 @@
 # Online Race on Cloudflare
 
-Online Race adds friend rooms for 2–4 players on Sunset Circuit, Storm Reef, and the revised Neon Leviathan. Protocol v3 includes the shared harbor current rules; deploy frontend and Worker together.
+Online Race adds friend rooms for 2–4 players on Breakwater, Nightfall, and Sunken Temple. Protocol v4 includes ramp flight state, landing boosts and deterministic moving locks; deploy frontend and Worker together.
 Quick Race and Time Trial continue to work without a network service. Online
 results never update local Time Trial records.
 

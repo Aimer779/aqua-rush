@@ -3,12 +3,17 @@ import { OnlinePrediction } from '../src/network/OnlinePrediction';
 import { OnlineSimulation, type AppliedInput } from '../src/shared/OnlineSimulation';
 import { SIMULATION_STEP, type ClientMessage, type RaceSnapshot, type RoomPlayer } from '../src/shared/OnlineProtocol';
 
-for (const trackId of ['storm-reef', 'neon-leviathan'] as const) for (const rtt of [50, 100, 200]) {
+for (const trackId of ['breakwater', 'nightfall', 'sunken-temple'] as const) for (const rtt of [50, 100, 200]) {
   test(`${trackId}: prediction remains bounded with ${rtt}ms RTT and controlled jitter`, () => {
     const player: RoomPlayer = { id: 'captain', name: 'Captain', slot: 0, ready: true, connected: true, dnf: false };
     const simulation = new OnlineSimulation(trackId, [player]);
     const boat = simulation.boats.get(player.id)!;
-    if (trackId === 'neon-leviathan') {
+    if (trackId === 'breakwater') {
+      const ramp = simulation.track.mechanics.ramps[0];
+      boat.reset(ramp.center.clone().addScaledVector(ramp.forward, -ramp.length / 2 - 15), simulation.track.headingAt(ramp.progress));
+      boat.speed = 23; boat.velocity.copy(ramp.forward).multiplyScalar(23);
+    }
+    if (trackId === 'sunken-temple') {
       const field = boat.currentField!, zone = field.zones[0];
       const position = zone.center.clone(); position.z += 22;
       const velocity = field.sample(position).normalize().multiplyScalar(20);

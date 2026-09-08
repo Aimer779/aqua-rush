@@ -48,7 +48,7 @@ class ThrowingStorage extends MemoryStorage {
 const defaultData = (): SaveData => ({
   version: SAVE_SCHEMA_VERSION,
   settings: { muted: false, reducedMotion: false },
-  lastSelection: { mode: 'quick-race', trackId: 'sunset-circuit' },
+  lastSelection: { mode: 'quick-race', trackId: 'breakwater' },
   timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, { bestLap: null, bestTotal: null, ...(getTrackDefinition(id).rulesRevision ? { rulesRevision: getTrackDefinition(id).rulesRevision } : {}) }])) as SaveData['timeTrial'],
 });
 
@@ -92,11 +92,11 @@ test.describe('V3 versioned SaveStore contract', () => {
     const valid: SaveData = {
       version: SAVE_SCHEMA_VERSION,
       settings: { muted: true, reducedMotion: true },
-      lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
+      lastSelection: { mode: 'time-trial', trackId: 'nightfall' },
       timeTrial: {
         ...defaultData().timeTrial,
-        'sunset-circuit': { bestLap: 31.25, bestTotal: 101.5 },
-        'storm-reef': { bestLap: 42.75, bestTotal: 134.2 },
+        'breakwater': { bestLap: 31.25, bestTotal: 101.5 },
+        'nightfall': { bestLap: 42.75, bestTotal: 134.2 },
       },
     };
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(valid));
@@ -124,10 +124,10 @@ test.describe('V3 versioned SaveStore contract', () => {
     const legacy = {
       version: 0,
       settings: { muted: true, reducedMotion: true },
-      lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
+      lastSelection: { mode: 'time-trial', trackId: 'nightfall' },
       timeTrial: {
-        'sunset-circuit': { bestLap: 33.4, bestTotal: 105.8 },
-        'storm-reef': { bestLap: 45.2, bestTotal: 139.6 },
+        'breakwater': { bestLap: 33.4, bestTotal: 105.8 },
+        'nightfall': { bestLap: 45.2, bestTotal: 139.6 },
       },
     };
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(legacy));
@@ -151,56 +151,56 @@ test.describe('V3 versioned SaveStore contract', () => {
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify({
       version: 1,
       settings: { muted: true, reducedMotion: false },
-      lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
+      lastSelection: { mode: 'time-trial', trackId: 'nightfall' },
       timeTrial: {
-        'sunset-circuit': { bestLap: 30, bestTotal: 96 },
-        'storm-reef': { bestLap: 42, bestTotal: 130 },
+        'breakwater': { bestLap: 30, bestTotal: 96 },
+        'nightfall': { bestLap: 42, bestTotal: 130 },
       },
     }));
     installWindow(storage);
     const store = new SaveStore();
     const data = store.load().data;
-    expect(data.timeTrial['sunset-circuit']).toEqual({ bestLap: 30, bestTotal: 96 });
-    expect(data.timeTrial['neon-leviathan']).toMatchObject({ bestLap: null, bestTotal: null });
-    store.setSelection('time-trial', 'neon-leviathan');
-    store.recordTimeTrial('neon-leviathan', 34, 106);
-    store.recordTimeTrial('neon-leviathan', NaN, Infinity);
+    expect(data.timeTrial['breakwater']).toEqual({ bestLap: 30, bestTotal: 96 });
+    expect(data.timeTrial['sunken-temple']).toMatchObject({ bestLap: null, bestTotal: null });
+    store.setSelection('time-trial', 'sunken-temple');
+    store.recordTimeTrial('sunken-temple', 34, 106);
+    store.recordTimeTrial('sunken-temple', NaN, Infinity);
     const reloaded = new SaveStore().load().data;
-    expect(reloaded.lastSelection.trackId).toBe('neon-leviathan');
+    expect(reloaded.lastSelection.trackId).toBe('sunken-temple');
     expect(reloaded.settings.muted).toBe(true);
-    expect(reloaded.timeTrial['neon-leviathan']).toMatchObject({ bestLap: 34, bestTotal: 106 });
-    expect(reloaded.timeTrial['storm-reef']).toEqual({ bestLap: 42, bestTotal: 130 });
+    expect(reloaded.timeTrial['sunken-temple']).toMatchObject({ bestLap: 34, bestTotal: 106 });
+    expect(reloaded.timeTrial['nightfall']).toEqual({ bestLap: 42, bestTotal: 130 });
   });
 
   test('records improve independently per course and never regress', () => {
     const store = new SaveStore();
     store.load();
 
-    expect(store.recordTimeTrial('sunset-circuit', 32, 101)).toEqual({
+    expect(store.recordTimeTrial('breakwater', 32, 101)).toEqual({
       newLapRecord: true,
       newTotalRecord: true,
     });
-    expect(store.recordTimeTrial('sunset-circuit', 35, 108)).toEqual({
+    expect(store.recordTimeTrial('breakwater', 35, 108)).toEqual({
       newLapRecord: false,
       newTotalRecord: false,
     });
-    expect(store.recordTimeTrial('sunset-circuit', 30, 104)).toEqual({
+    expect(store.recordTimeTrial('breakwater', 30, 104)).toEqual({
       newLapRecord: true,
       newTotalRecord: false,
     });
-    expect(store.recordTimeTrial('sunset-circuit', 31, 99)).toEqual({
+    expect(store.recordTimeTrial('breakwater', 31, 99)).toEqual({
       newLapRecord: false,
       newTotalRecord: true,
     });
-    expect(store.recordTimeTrial('storm-reef', 41, 130)).toEqual({
+    expect(store.recordTimeTrial('nightfall', 41, 130)).toEqual({
       newLapRecord: true,
       newTotalRecord: true,
     });
 
     expect(store.snapshot().timeTrial).toEqual({
       ...defaultData().timeTrial,
-      'sunset-circuit': { bestLap: 30, bestTotal: 99 },
-      'storm-reef': { bestLap: 41, bestTotal: 130 },
+      'breakwater': { bestLap: 30, bestTotal: 99 },
+      'nightfall': { bestLap: 41, bestTotal: 130 },
     });
   });
 
@@ -209,32 +209,35 @@ test.describe('V3 versioned SaveStore contract', () => {
     store.load();
     store.setMuted(true);
     store.setReducedMotion(true);
-    store.setSelection('time-trial', 'storm-reef');
-    store.recordTimeTrial('sunset-circuit', 31, 100);
-    store.recordTimeTrial('storm-reef', 42, 132);
+    store.setSelection('time-trial', 'nightfall');
+    store.recordTimeTrial('breakwater', 31, 100);
+    store.recordTimeTrial('nightfall', 42, 132);
 
     store.resetRecords();
     expect(store.snapshot()).toEqual({
       version: SAVE_SCHEMA_VERSION,
       settings: { muted: true, reducedMotion: true },
-      lastSelection: { mode: 'time-trial', trackId: 'storm-reef' },
+      lastSelection: { mode: 'time-trial', trackId: 'nightfall' },
       timeTrial: defaultData().timeTrial,
     });
   });
 
-  test('old harbor records are archived once and cannot compete with revised course times', () => {
+  test('retired world records are archived once and cannot compete with rebuilt course times', () => {
     const storage = new MemoryStorage();
     const old = defaultData();
-    old.timeTrial['neon-leviathan'] = { bestLap: 32, bestTotal: 100 };
+    Object.assign(old.timeTrial, { 'neon-leviathan': { bestLap: 32, bestTotal: 100, rulesRevision: 2 }, 'sunset-circuit': { bestLap: 30, bestTotal: 90 } });
     storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(old));
     installWindow(storage);
     const store = new SaveStore();
     const loaded = store.load();
-    expect(loaded.data.timeTrial['neon-leviathan']).toEqual({ bestLap: null, bestTotal: null, rulesRevision: 2 });
-    expect(loaded.data.archivedTimeTrial?.['neon-leviathan@1']).toMatchObject({ bestLap: 32, bestTotal: 100 });
-    store.recordTimeTrial('neon-leviathan', 40, 130);
+    expect(loaded.data.timeTrial['sunken-temple']).toEqual({ bestLap: null, bestTotal: null });
+    expect(loaded.data.archivedTimeTrial?.['neon-leviathan@2']).toMatchObject({ bestLap: 32, bestTotal: 100 });
+    expect(loaded.data.archivedTimeTrial?.['sunset-circuit@1']).toMatchObject({ bestLap: 30, bestTotal: 90 });
+    expect(Object.keys(loaded.data.timeTrial)).toEqual(TRACK_IDS);
+    store.recordTimeTrial('sunken-temple', 40, 130);
     const reload = new SaveStore().load();
-    expect(reload.data.timeTrial['neon-leviathan'].bestTotal).toBe(130);
-    expect(reload.data.archivedTimeTrial?.['neon-leviathan@1'].bestTotal).toBe(100);
+    expect(reload.data.timeTrial['sunken-temple'].bestTotal).toBe(130);
+    expect(reload.data.archivedTimeTrial?.['neon-leviathan@2'].bestTotal).toBe(100);
+    expect(reload.repaired).toBe(false);
   });
 });

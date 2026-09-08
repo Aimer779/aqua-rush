@@ -12,13 +12,13 @@ type SaveData = {
   };
   lastSelection: {
     mode: 'quick-race' | 'time-trial';
-    trackId: TrackId; // Five registered courses.
+    trackId: TrackId; // Three rebuilt worlds.
   };
   timeTrial: Record<TrackId, { bestLap: number | null; bestTotal: number | null }>;
 };
 ```
 
-Times are positive finite seconds. A result replaces a stored time only when it is lower. Course records are independent. Missing entries in existing two-course saves are filled with null records for the three new courses; recognized old records and settings are retained. This is an additive content extension of version 1.
+Times are positive finite seconds. A result replaces a stored time only when it is lower. Course records are independent. The rebuilt worlds start with empty records. Settings are retained. Times from the five retired course IDs are archived under their original ID and rules revision; they cannot appear in the new world rankings.
 
 ## Failure handling
 
@@ -33,4 +33,4 @@ Automated coverage is in `tests/save-store.spec.ts`.
 
 ## Revised course records
 
-Neon Leviathan uses rulesRevision 2. Its former PB is retained in the optional `archivedTimeTrial["neon-leviathan@1"]` record and the new version starts with empty PBs. Other course records retain their existing schema. Reset Records clears current and archived times.
+The optional `archivedTimeTrial` dictionary retains retired records such as `neon-leviathan@2` and `sunset-circuit@1`. Reloading does not re-archive or overwrite new world records. Reset Records clears current and archived times.

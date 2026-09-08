@@ -32,7 +32,7 @@ export type SaveLoadResult = {
 const defaults = (): SaveData => ({
   version: SAVE_SCHEMA_VERSION,
   settings: { muted: false, reducedMotion: false },
-  lastSelection: { mode: 'quick-race', trackId: 'sunset-circuit' },
+  lastSelection: { mode: 'quick-race', trackId: 'breakwater' },
   timeTrial: Object.fromEntries(TRACK_IDS.map(id => [id, emptyRecord(id)])) as SaveData['timeTrial'],
 });
 
@@ -67,6 +67,19 @@ export class SaveStore {
       const parsed = JSON.parse(raw) as Partial<SaveData>;
       if (parsed.version !== SAVE_SCHEMA_VERSION) repaired = true;
       const archived: Record<string, TimeTrialRecord> = {};
+      const legacy = parsed.timeTrial as Record<string, TimeTrialRecord> | undefined;
+      for (const id of ['sunset-circuit', 'storm-reef', 'neon-leviathan', 'caldera-throat', 'storm-needle']) {
+        for (const revision of [1, 2]) {
+          const key = id + '@' + revision, record = parsed.archivedTimeTrial?.[key];
+          if (record) archived[key] = { bestLap: positiveTime(record.bestLap), bestTotal: positiveTime(record.bestTotal), rulesRevision: revision };
+        }
+        const record = legacy?.[id];
+        if (record) {
+          const revision = record.rulesRevision === 2 ? 2 : 1;
+          archived[id + '@' + revision] = { bestLap: positiveTime(record.bestLap), bestTotal: positiveTime(record.bestTotal), rulesRevision: revision };
+          repaired = true;
+        }
+      }
       const timeTrial = Object.fromEntries(TRACK_IDS.map(id => {
         const revision = getTrackDefinition(id).rulesRevision ?? 1;
         for (let previous = 1; previous < revision; previous++) {
@@ -86,7 +99,7 @@ export class SaveStore {
       })) as SaveData['timeTrial'];
       {
         const mode = parsed.lastSelection?.mode === 'time-trial' ? 'time-trial' : 'quick-race';
-        const trackId = isTrackId(parsed.lastSelection?.trackId) ? parsed.lastSelection.trackId : 'sunset-circuit';
+        const trackId = isTrackId(parsed.lastSelection?.trackId) ? parsed.lastSelection.trackId : 'breakwater';
         this.data = {
           version: SAVE_SCHEMA_VERSION,
           settings: {

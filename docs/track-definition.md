@@ -1,6 +1,6 @@
 # Aqua Rush V3 TrackDefinition
 
-`src/game/ContentCatalog.ts` is the authored content source. `TRACK_CATALOG` contains `sunset-circuit`, `storm-reef`, `neon-leviathan`, `caldera-throat`, and `storm-needle`. `ONLINE_TRACK_IDS` permits Sunset Circuit, Storm Reef, and the revised Neon Leviathan. Caldera Throat and Storm Needle remain local experimental courses. Unknown IDs are rejected.
+`src/game/WorldCatalog.ts` authors three worlds: `breakwater`, `nightfall`, and `sunken-temple`. `ContentCatalog.ts` registers and validates them. All three are available online. Retired and unknown IDs are rejected.
 
 ## Stable fields
 
@@ -11,7 +11,8 @@
 | `halfWidth`, `width`, `buoySpacing` | Advisory guide/marker placement; never a solid race corridor |
 | `lapCount`, `spawnGrid` | Session length and the four authored start slots |
 | `markerPreset` | Course-specific standard/tall/hazard marker language |
-| `environmentKit`, `landmarks` | Course-specific landmark family and authored progress/lateral placements |
+| `blocks`, `ramps`, `shutters` | Shared oriented architecture, physical launch surfaces and deterministic moving locks |
+| `currents`, `routes` | Optional bounded current fields and readable alternate lines |
 | `timeTrialTargets` | Gold/silver/bronze authored total-time references |
 | `controlPoints` | Closed Catmull-Rom route used by AI, guide, recovery, and authored placements |
 | `checkpoints` | Ordered directional plane definitions |
@@ -37,10 +38,10 @@ Reverse, side, vertical, low-speed, repeated overlap, skipped, and out-of-order 
 
 ## Open water and recovery
 
-`halfWidth` is advisory. It is used for AI line choice, marker placement, guide presentation, and off-route feedback only. `CollisionSystem` resolves boats, catalogued visible rocks and shared landmark footprints, and the extreme ±400-unit world safety bound. It never pushes a boat back into a track corridor.
+`halfWidth` is advisory. It is used for AI line choice, marker placement, guide presentation, and off-route feedback only. `CollisionSystem` resolves boats, catalogued visible rocks and height-aware oriented waterfront blocks and moving locks, and the extreme ±400-unit world safety bound. It never pushes a boat back into a track corridor.
 
 Recovery moves the player to the last valid sector without changing lap, expected checkpoint, gate claims, or remaining boost. It is an explicit `X`/Pause action; off-route and stationary states only change its presentation and eligibility diagnostics.
 
 ## Content extension rule
 
-The approved Map Pack expansion adds three P0 courses via `ExperimentalMapPack.ts`. Each definition is validated at registration. `landmarks.kind` selects cargo, volcano or turbine modules; positions use arc-length progress plus lateral offset. `LandmarkFootprints.ts` shares visible foundations with collision proxies. Neon Leviathan revision 2 adds optional `routes` and bounded `currents` shared by boat control, server and prediction. The full Tidal Roulette, moving-ship and flight designs remain unregistered. See [implementation evidence](map-expansion-review.zh-CN.md).
+`WorldMechanics.ts` resolves authored progress/lateral positions for physics and visuals. Ordinary banks are kept outside both the navigable center line and the ramp landing fan. Deliberate low walls opt into the route and have a marked bypass. Launch surfaces carry boats into a gravity-driven flight and landing grants one short boost. Lock phases use simulation time, including server prediction/replay; reduced motion changes presentation only.
